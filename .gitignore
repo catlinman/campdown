@@ -1,2 +1,5 @@
-__pycache__/
-*.py[cod]
+*
+!.gitignore
+!campdown.py
+!README.md
+!LICENSE

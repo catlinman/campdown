@@ -1,15 +1,13 @@
 import os
 import math
 import sys
+import re
 import requests
 import json
 
-# TODO: - Add album dowloading
-#       - Handle multiple downloads in a queue
-#       - Add a fancy GTK GUI
-
 try:
-    bandcamp_track_url = sys.argv[1].replace('\\', '/')
+    bandcamp_url = sys.argv[1].replace('\\', '/')
+    bandcamp_url = sys.argv[1].replace('"', '')
 except:
     print('\nMissing required URL argument')
     sys.exit(2)
@@ -21,24 +19,38 @@ try:
 except:
     outputfolder = os.path.dirname(__file__).replace('\\', '/') + "/"
 
-bandcamp_base_url = str(bandcamp_track_url).split(".com", 1)[0] + ".com"
-bandcamp_album = ""
+try:
+    r = requests.get(bandcamp_url).content
+except:
+    print("An error occurred while trying to access your supplied URL.")
 
-r = requests.get(bandcamp_track_url).content
-full_json = []
+bandcamp_base_url = str(bandcamp_url).split(".com", 1)[0] + ".com"
+bandcamp_isAlbum = False
+bandcamp_queue = []
+bandcamp_band = ""
 
-bandcamp_band = str(r).split("var BandData = {",1)[1].split("}")[0].split('name : "')[1].split('",')[0]
+try:
+    bandcamp_band = str(r).split("var BandData = {",1)[1].split("}")[0].split('name : "')[1].split('",')[0]
+except IndexError:
+    try:
+        bandcamp_band = str(r).split("var BandData = {",1)[1].split("}")[0].split('name: "')[1].split('",')[0]
+    except:
+        print("\nFailed to fetch the band title")
 
 if str(r).find("track_list") == -1:
-    raw_json = ("{" + (str(r).split("trackinfo: [{",1)[1].split("}]")[0]) + "} ").replace('\\n', ' ').replace('\\', ' ')
-    track_json = json.loads(raw_json)
-    full_json.insert(1, track_json)
+    rawinfo = ("{" + (str(r).split("trackinfo: [{",1)[1].split("}]")[0]) + "} ").replace('\\n', ' ').replace('\\', ' ')
+    trackinfo = json.loads(rawinfo)
+    bandcamp_queue.insert(1, trackinfo)
 
-else: 
+    bandcamp_isAlbum = False
+    bandcamp_album = str(r).split('<span itemprop="name">')[1].split("</span>")[0]
+
+else:
+    bandcamp_isAlbum = True
     bandcamp_album = str(r).split('<meta name="Description" content=')[1].split(" by ")[0][3:]
 
     if not os.path.exists(outputfolder + "/" + bandcamp_album + "/"):
-        print('Created album folder in %s' % (outputfolder + "/" + bandcamp_album + "/"))
+        print('\nCreated album folder in %s' % (outputfolder + bandcamp_album + "/"))
         os.makedirs(outputfolder + "/" + bandcamp_album + "/")
 
     bandcamp_album_tracktable = str(r).split('<table class="track_list track_table" id="track_table">',1)[1].split('</table>')[0]
@@ -59,30 +71,33 @@ else:
                 print("" + bandcamp_base_url + "/track" + trackname)
 
                 track_r = requests.get(bandcamp_base_url + "/track" + trackname).content
-                raw_json = ("{" + (str(track_r).split("trackinfo: [{",1)[1].split("}]")[0]) + "} ").replace('\\n', ' ').replace('\\', ' ')
-                track_json = json.loads(raw_json)
-                full_json.insert(i, track_json)
+                rawinfo = ("{" + (str(track_r).split("trackinfo: [{",1)[1].split("}]")[0]) + "} ").replace('\\n', ' ').replace('\\', ' ')
+                trackinfo = json.loads(rawinfo)
+                bandcamp_queue.insert(i, trackinfo)
 
-totaltracks = len(full_json)
-
-if bandcamp_album != "":
+if bandcamp_isAlbum == True:
     outputfolder = outputfolder + bandcamp_album
 
 print("Writing all output files to %s" % outputfolder)
 
-for i in range(0, totaltracks): 
-    track = i
-    title = full_json[i]["title"]
-    duration = full_json[i]["duration"]
+for i in range(0, len(bandcamp_queue)): 
+    title = bandcamp_queue[i]["title"]
+    duration = bandcamp_queue[i]["duration"]
 
-    if bandcamp_album != "":
-        if title.find(" - ") != -1:
-            partialtitle = str(title).split("-", 1)
-            title = partialtitle[0] + " - " + bandcamp_album + " - " + bandcamp_band + " - " + str(i + 1) + " " + partialtitle[1]
+    if title.find(" - ") != -1:
+        partialtitle = str(title).split("-", 1)
+
+        if bandcamp_isAlbum == True:
+            title = partialtitle[0] + "- " + bandcamp_album + " - " + str(i + 1) + partialtitle[1]
         else:
-            title = bandcamp_album + " - " + bandcamp_band + " - " + str(i + 1) + " " + title
+            title = partialtitle[0] + "- " + bandcamp_album + " -" + partialtitle[1]
+    else:
+        if bandcamp_isAlbum == True:
+            title = bandcamp_band + " - " + bandcamp_album + " - " + str(i + 1) + " " + title
+        else:
+            title = bandcamp_band + " - " + bandcamp_album + " - " + title
 
-    fileurl = full_json[i]["file"]["mp3-128"]
+    fileurl = bandcamp_queue[i]["file"]["mp3-128"]
 
     with open(outputfolder + "/" + title + ".mp3", "wb") as f:
 
