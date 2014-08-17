@@ -26,7 +26,6 @@ if __name__ == "__main__":
             print("An error occurred while trying to access your supplied URL")
 
         bandcamp_base_url = str(bandcamp_url).split("/")[0] + "//" + str(bandcamp_url).split("/")[2]
-        print(bandcamp_base_url)
         bandcamp_isAlbum = False
         bandcamp_queue = []
         bandcamp_band = ""
