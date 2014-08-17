@@ -27,8 +27,10 @@ bandcamp_album = ""
 r = requests.get(bandcamp_track_url).content
 full_json = []
 
+bandcamp_band = str(r).split("var BandData = {",1)[1].split("}")[0].split('name : "')[1].split('",')[0]
+
 if str(r).find("track_list") == -1:
-    raw_json = ("{" + (str(r).split("trackinfo: [{",1)[1].split("}]")[0]) + "} ").replace('\\', ' ')
+    raw_json = ("{" + (str(r).split("trackinfo: [{",1)[1].split("}]")[0]) + "} ").replace('\\n', ' ').replace('\\', ' ')
     track_json = json.loads(raw_json)
     full_json.insert(1, track_json)
 
@@ -57,7 +59,7 @@ else:
                 print("" + bandcamp_base_url + "/track" + trackname)
 
                 track_r = requests.get(bandcamp_base_url + "/track" + trackname).content
-                raw_json = ("{" + (str(track_r).split("trackinfo: [{",1)[1].split("}]")[0]) + "} ").replace('\\', ' ')
+                raw_json = ("{" + (str(track_r).split("trackinfo: [{",1)[1].split("}]")[0]) + "} ").replace('\\n', ' ').replace('\\', ' ')
                 track_json = json.loads(raw_json)
                 full_json.insert(i, track_json)
 
@@ -76,9 +78,9 @@ for i in range(0, totaltracks):
     if bandcamp_album != "":
         if title.find(" - ") != -1:
             partialtitle = str(title).split("-", 1)
-            title = partialtitle[0] + " - " + bandcamp_album + " - " + str(i) + " " + partialtitle[1]
+            title = partialtitle[0] + " - " + bandcamp_album + " - " + bandcamp_band + " - " + str(i + 1) + " " + partialtitle[1]
         else:
-            title = bandcamp_album + " - " + str(i) + " " + title
+            title = bandcamp_album + " - " + bandcamp_band + " - " + str(i + 1) + " " + title
 
     fileurl = full_json[i]["file"]["mp3-128"]
 
