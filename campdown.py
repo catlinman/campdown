@@ -1,7 +1,6 @@
 import os
 import math
 import sys
-import re
 import requests
 import json
 
@@ -26,7 +25,8 @@ if __name__ == "__main__":
         except:
             print("An error occurred while trying to access your supplied URL")
 
-        bandcamp_base_url = str(bandcamp_url).split(".com", 1)[0] + ".com"
+        bandcamp_base_url = str(bandcamp_url).split("/")[0] + "//" + str(bandcamp_url).split("/")[2]
+        print(bandcamp_base_url)
         bandcamp_isAlbum = False
         bandcamp_queue = []
         bandcamp_band = ""
@@ -88,12 +88,12 @@ if __name__ == "__main__":
             url = bandcamp_queue[i]["file"]["mp3-128"]
 
             if title.find(" - ") != -1:
-                partialtitle = str(title).split("-", 1)
+                partialtitle = str(title).split(" - ", 1)
 
                 if bandcamp_isAlbum == True:
-                    title = partialtitle[0] + "- " + bandcamp_album + " - " + str(i + 1) + partialtitle[1]
+                    title = partialtitle[0] + " - " + bandcamp_album + " - " + str(i + 1) + " " + partialtitle[1]
                 else:
-                    title = partialtitle[0] + "- " + bandcamp_album + " -" + partialtitle[1]
+                    title = partialtitle[0] + " - " + bandcamp_album + " - " + partialtitle[1]
             else:
                 if bandcamp_isAlbum == True:
                     title = bandcamp_band + " - " + bandcamp_album + " - " + str(i + 1) + " " + title
@@ -126,7 +126,8 @@ if __name__ == "__main__":
                     os.remove(outputfolder + "/" + title + ".mp3")
 
                     try:
-                        os.rmdir(outputfolder)
+                        print(outputfolder + "/")
+                        os.rmdir(outputfolder + "/")
                     except OSError:
                         print()
 
