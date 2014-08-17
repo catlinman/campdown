@@ -26,6 +26,7 @@ if __name__ == "__main__":
             print("An error occurred while trying to access your supplied URL")
 
         bandcamp_base_url = str(bandcamp_url).split("/")[0] + "//" + str(bandcamp_url).split("/")[2]
+        bandcamp_art_url = str(r).split('<a class="popupImage" href="', 1)[1].split('">')[0]
         bandcamp_isAlbum = False
         bandcamp_queue = []
         bandcamp_band = ""
@@ -64,6 +65,7 @@ if __name__ == "__main__":
                 if position != -1:
                     position = position + len('<a href="/track')
                     trackname = ""
+
                     while track[position] != '"':
                         trackname = trackname + track[position]
                         position = position + 1
@@ -76,7 +78,7 @@ if __name__ == "__main__":
                         trackinfo = json.loads(rawinfo)
                         bandcamp_queue.insert(i, trackinfo)
 
-        if bandcamp_isAlbum == True:
+        if bandcamp_isAlbum:
             outputfolder = outputfolder + bandcamp_album
 
         print("Writing all output files to %s" % outputfolder)
@@ -89,12 +91,12 @@ if __name__ == "__main__":
             if title.find(" - ") != -1:
                 partialtitle = str(title).split(" - ", 1)
 
-                if bandcamp_isAlbum == True:
+                if bandcamp_isAlbum:
                     title = partialtitle[0] + " - " + bandcamp_album + " - " + str(i + 1) + " " + partialtitle[1]
                 else:
                     title = partialtitle[0] + " - " + bandcamp_album + " - " + partialtitle[1]
             else:
-                if bandcamp_isAlbum == True:
+                if bandcamp_isAlbum:
                     title = bandcamp_band + " - " + bandcamp_album + " - " + str(i + 1) + " " + title
                 else:
                     title = bandcamp_band + " - " + bandcamp_album + " - " + title
@@ -102,7 +104,6 @@ if __name__ == "__main__":
             if os.path.isfile(outputfolder + "/" + title + ".mp3") == False:
                 try:
                     with open(outputfolder + "/" + title + ".mp3", "wb") as f:
-
                         print('\n\n' + "Downloading: " + title)
                         response = requests.get(url, stream = True)
                         total_length = response.headers.get('content-length')
@@ -120,21 +121,40 @@ if __name__ == "__main__":
                                 done = int(50 * dl / total_length)
                                 sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ('=' * done, ">",' ' * (50 - done), (int(((dl) * 100) / pow(1024,2)) / 100), cleaned_length))
                                 sys.stdout.flush()
+
                 except (KeyboardInterrupt, SystemExit):
                     print('\n\nDownload aborted - removing download remnants')
                     os.remove(outputfolder + "/" + title + ".mp3")
 
                     try:
-                        print(outputfolder + "/")
                         os.rmdir(outputfolder + "/")
                     except OSError:
                         print()
 
                     sys.exit(2)
             else:
-                print("Skipping  %s" % title)
-            
+                print('\nSkipping  %s' % title)
+
         print('\n\nFinished downloading all tracks')
+
+        if bandcamp_isAlbum:
+            try:
+                print('\nDownloading album art...')
+
+                image_request = requests.get(bandcamp_art_url, stream = True)
+
+                if image_request.status_code == 200:
+                    with open(outputfolder + "/cover" + bandcamp_art_url[-4:], 'wb') as f:
+                        for chunk in image_request.iter_content(1024):
+                            f.write(chunk)
+
+            except (KeyboardInterrupt, SystemExit):
+                print('\n\nDownload aborted - removing download remnants')
+                os.remove(outputfolder + "/cover" + bandcamp_art_url[-4:])
+
+                sys.exit(2)
+
+            print('Saved album art to %s' % (outputfolder + "/cover" + bandcamp_art_url[-4:]))
 
     except (KeyboardInterrupt, SystemExit):
         print("Program interrupted by user - exiting")
