@@ -9,8 +9,13 @@ if __name__ == "__main__":
         try:
             bandcamp_url = sys.argv[1].replace('\\', '/')
             bandcamp_url = sys.argv[1].replace('"', '')
+
         except:
             print('\nMissing required URL argument')
+            sys.exit(2)
+
+        if not "http://" in bandcamp_url and not "https://" in bandcamp_url:
+            print('\n%s is not a valid URL' % bandcamp_url)
             sys.exit(2)
 
         try:
@@ -115,12 +120,15 @@ if __name__ == "__main__":
                             total_length = int(total_length)
                             cleaned_length = int((total_length * 100) / pow(1024,2)) / 100
                            
-                            for data in response.iter_content():
-                                dl += len(data)
-                                f.write(data)
-                                done = int(50 * dl / total_length)
-                                sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ('=' * done, ">",' ' * (50 - done), (int(((dl) * 100) / pow(1024,2)) / 100), cleaned_length))
-                                sys.stdout.flush()
+                            try:
+                                for data in response.iter_content():
+                                    dl += len(data)
+                                    f.write(data)
+                                    done = int(50 * dl / total_length)
+                                    sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ('=' * done, ">",' ' * (50 - done), (int(((dl) * 100) / pow(1024,2)) / 100), cleaned_length))
+                                    sys.stdout.flush()
+                            except:
+                                print("An error occured while downloading - skipping track")
 
                 except (KeyboardInterrupt, SystemExit):
                     print('\n\nDownload aborted - removing download remnants')
@@ -156,5 +164,5 @@ if __name__ == "__main__":
 
             print('Saved album art to %s' % (outputfolder + "/cover" + bandcamp_art_url[-4:]))
 
-    except (KeyboardInterrupt, SystemExit):
+    except (KeyboardInterrupt):
         print("Program interrupted by user - exiting")
