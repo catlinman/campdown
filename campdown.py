@@ -1,3 +1,4 @@
+import re
 import os
 import math
 import sys
@@ -108,7 +109,7 @@ if __name__ == "__main__":
 
             if os.path.isfile(outputfolder + "/" + title + ".mp3") == False:
                 try:
-                    with open(outputfolder + "/" + title + ".mp3", "wb") as f:
+                    with open(outputfolder + "/" + re.sub('[.!?,;\\*<>|]', '', title) + ".mp3", "wb") as f:
                         print('\n\n' + "Downloading: " + title)
                         response = requests.get(url, stream = True)
                         total_length = response.headers.get('content-length')
