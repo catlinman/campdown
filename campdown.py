@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
         else:
             bandcamp_isAlbum = True
-            bandcamp_album = str(r).split('<meta name="Description" content=')[1].split(" by ")[0][3:]
+            bandcamp_album = re.sub('[:*?<>|]', '', str(r).split('<meta name="Description" content=')[1].split(" by ")[0][3:])
 
             if not os.path.exists(outputfolder + "/" + bandcamp_album + "/"):
                 print('\nCreated album folder in %s' % (outputfolder + bandcamp_album + "/"))
