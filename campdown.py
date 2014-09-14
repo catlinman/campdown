@@ -91,8 +91,6 @@ if __name__ == "__main__":
 
         for i in range(0, len(bandcamp_queue)): 
             title = bandcamp_queue[i]["title"]
-            duration = bandcamp_queue[i]["duration"]
-            url = bandcamp_queue[i]["file"]["mp3-128"]
 
             if title.find(" - ") != -1:
                 partialtitle = str(title).split(" - ", 1)
@@ -106,6 +104,14 @@ if __name__ == "__main__":
                     title = bandcamp_band + " - " + bandcamp_album + " - " + str(i + 1) + " " + title
                 else:
                     title = bandcamp_band + " - " + bandcamp_album + " - " + title
+
+            duration = bandcamp_queue[i]["duration"]
+
+            try:
+                url = bandcamp_queue[i]["file"]["mp3-128"]
+            except TypeError:
+                print('\n\n' + title + " is not openly available - skipping track")
+                continue
 
             if os.path.isfile(outputfolder + "/" + title + ".mp3") == False:
                 try:
