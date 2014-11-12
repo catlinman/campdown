@@ -56,9 +56,11 @@ if __name__ == "__main__":
             bandcamp_queue.insert(1, trackinfo)
 
             bandcamp_isAlbum = False
-            bandcamp_album = str(r).split(
-                '<span itemprop="name">')[1].split("</span>")[0]
-
+            try:
+                bandcamp_album = str(r).split(
+                    '<span itemprop="name">')[1].split("</span>")[0]
+            except IndexError:
+               bandcamp_album = ""
         else:
             bandcamp_isAlbum = True
             bandcamp_album = re.sub(
