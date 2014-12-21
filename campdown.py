@@ -4,13 +4,14 @@ import math
 import sys
 import requests
 import json
+import string
 
 # Downloads a supplied file from a response.
 def download_file(response, folder, name):
 	# Get the size of the remote file.
 	total_length = response.headers.get('content-length')
 
-	# Open a file stream which will be used to save the 
+	# Open a file stream which will be used to save the s
 	with open(folder + "/" + re.sub('[\\/:*?<>|]', "", name) + ".mp3", "wb") as f:
 		# Make sure that the printed string is compatible with the user's command line. Else, encode.
 		# This applies to all other print arguments throughout this file. 
@@ -40,7 +41,7 @@ def download_file(response, folder, name):
 					sys.stdout.write("\r[%s%s%s] %sMB / %sMB" % ('=' * done, ">", ' ' * (
 						50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
 					sys.stdout.flush()
-					
+
 			except(KeyboardInterrupt):
 				# Close the filestream and remove the unfinished file if the user interrupts the download process.
 				f.close()
@@ -98,8 +99,8 @@ if __name__ == "__main__":
 		# We check if the page has a track list or not. If not, we only fetch the track info for the one track on the given Bandcamp page.
 		if str(r).find("track_list") == -1:
 			# Extract the unformatted JSON array from the request's content. Convert it to an actual Python array afterwards.
-			rawinfo = ("{" + (str(r).split("trackinfo: [{", 1)[1].split("}]")[0]) + "} ").replace('\\n', ' ').replace('\\', ' ')
-			trackinfo = json.loads(rawinfo)
+			rawinfo = ("{" + (str(r).split("trackinfo: [{", 1)[1].split("}]")[0]) + "} ")
+			trackinfo = json.loads(rawinfo.encode("ASCII", "ignore").decode())
 
 			# Insert the track data into the queue and inform the downloader that it's not an album.
 			bandcamp_queue.insert(1, trackinfo)
@@ -117,13 +118,14 @@ if __name__ == "__main__":
 			bandcamp_album = re.sub('[:*?<>|]', '', str(r).split('<meta name="Description" content=')[1].split(" by ")[0][2:])
 
 			# Create a new album folder if it doesn't already exist.
-			if not os.path.exists(outputfolder + "/" + bandcamp_album + "/"):
+			if not os.path.exists(outputfolder + "/" + bandcamp_artist + " - " + bandcamp_album + "/"):
 				try:
-					print('\nCreated album folder in %s%s%s' %(outputfolder, bandcamp_album, "/"))
+					print('\nCreated album folder in %s%s - %s%s' %(outputfolder, bandcamp_artist, bandcamp_album, "/"))
 				except UnicodeEncodeError:
-					print('\nCreated album folder in %s%s%s' %(outputfolder, bandcamp_album.encode(sys.stdout.encoding, errors = "replace").decode(), "/"))
+					print('\nCreated album folder in %s%s - %s%s' %(outputfolder, bandcamp_artist.encode(sys.stdout.encoding, errors = "replace").decode(),
+						bandcamp_album.encode(sys.stdout.encoding, errors = "replace").decode(), "/"))
 
-				os.makedirs(outputfolder + "/" + bandcamp_album + "/")
+				os.makedirs(outputfolder + "/" + bandcamp_artist + " - " + bandcamp_album + "/")
 
 			# Extract the string of tracks from the request's response content. Convert the individual titles to single entries for use in an array.
 			bandcamp_album_tracktable = str(r).split('<table class="track_list track_table" id="track_table">', 1)[1].split('</table>')[0]
@@ -148,15 +150,15 @@ if __name__ == "__main__":
 
 						# Make a single request to the track's own URL and extract the track info from there.
 						track_r = requests.get(bandcamp_base_url + "/track" + trackname).content.decode('utf-8')
-						rawinfo = ("{" + (str(track_r).split("trackinfo: [{", 1)[1].split("}]")[0]) + "} ").replace('\\n', ' ').replace('\\', ' ')
-						trackinfo = json.loads(rawinfo)
+						rawinfo = ("{" + (str(track_r).split("trackinfo: [{", 1)[1].split("}]")[0]) + "} ")
+						trackinfo = json.loads(rawinfo.encode("ASCII", "ignore").decode())
 
 						# Insert the acquired data into the queue. 
 						bandcamp_queue.insert(i, trackinfo)
 
 		if bandcamp_isAlbum:
 			# Since we know that the downloader is fetching an album we might as well sum up the output string for easier encoding.
-			outputfolder = outputfolder + bandcamp_album
+			outputfolder = outputfolder + bandcamp_artist + " - " + bandcamp_album
 		
 		# Once again differentiating between and encoded output folder string and the normal string to avoid command line encoding errors.
 		try:
@@ -241,4 +243,5 @@ if __name__ == "__main__":
 				print('Saved album art to %s%s%s' %(outputfolder.encode(sys.stdout.encoding, errors = "replace").decode(), "/cover", bandcamp_art_url[-4:]))
 
 	except (KeyboardInterrupt):
+		print("Double interrupt caught - exiting program...")
 		sys.exit(2)
