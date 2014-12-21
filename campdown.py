@@ -6,7 +6,7 @@ import requests
 import json
 
 # Downloads a supplied file from a response.
-def downloadfile(response, folder, name):
+def download_file(response, folder, name):
 	# Get the size of the remote file.
 	total_length = response.headers.get('content-length')
 
@@ -27,19 +27,21 @@ def downloadfile(response, folder, name):
 			dl = 0
 			total_length = int(total_length)
 			cleaned_length = int((total_length * 100) / pow(1024, 2)) / 100
+			block_size = 2048
 
 			try:
-				for data in response.iter_content():
-					# Add the length of the data to the download size and write the data to the file.
-					dl += len(data)
-					f.write(data)
+				for chunk in response.iter_content(chunk_size = block_size):
+					# Add the length of the chunk to the download size and write the chunk to the file.
+					dl += len(chunk)
+					f.write(chunk)
 
 					# Display a loading bar based on the currently download filesize.
 					done = int(50 * dl / total_length)
 					sys.stdout.write("\r[%s%s%s] %sMB / %sMB" % ('=' * done, ">", ' ' * (
 						50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
 					sys.stdout.flush()
-			except:
+					
+			except(KeyboardInterrupt):
 				# Close the filestream and remove the unfinished file if the user interrupts the download process.
 				f.close()
 				print('\nKeyboardInterrupt caught - skipping track')
@@ -198,12 +200,12 @@ if __name__ == "__main__":
 
 			# Check if the file doesn't exist and download it.
 			if os.path.isfile(outputfolder + "/" + title + ".mp3") == False:
-				downloadfile(response, outputfolder, title)
+				download_file(response, outputfolder, title)
 
 			# Inspect the already existing file's size and overwrite it, if it's smaller than the remote file.
 			elif os.path.getsize(outputfolder + "/" + title + ".mp3") < int(response.headers.get('content-length')):
 				print('\nRedownloading since the file size doesn\'t match up.')
-				downloadfile(response, outputfolder, title)
+				download_file(response, outputfolder, title)
 
 			else:
 				try:
@@ -211,7 +213,7 @@ if __name__ == "__main__":
 				except UnicodeEncodeError:
 					print('\nSkipping  %s' % title.encode(sys.stdout.encoding, errors = "replace").decode())
 				
-		print('\n\nFinished downloading all tracks')
+		print('\nFinished downloading all tracks')
 		
 		# Download the album art if the supplied URL was an album URL.
 		if bandcamp_isAlbum:
