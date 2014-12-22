@@ -42,7 +42,7 @@ def download_file(url, folder, name):
 
 						# Display a loading bar based on the currently download filesize.
 						done = int(50 * dl / total_length)
-						sys.stdout.write("\r[%s%s%s] %sMB / %sMB" % ('=' * done, ">", ' ' * (
+						sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ('=' * done, ">", ' ' * (
 							50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
 						sys.stdout.flush()
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
 		if str(r).find("track_list") == -1:
 			# Extract the unformatted JSON array from the request's content. Convert it to an actual Python array afterwards.
 			rawinfo = ("{" + (str(r).split("trackinfo: [{", 1)[1].split("}]")[0]) + "} ")
-			trackinfo = json.loads(rawinfo.encode("ASCII", "ignore").decode())
+			trackinfo = json.loads(rawinfo)
 
 			# Insert the track data into the queue and inform the downloader that it's not an album.
 			bandcamp_queue.insert(1, trackinfo)
@@ -155,7 +155,7 @@ if __name__ == "__main__":
 						# Make a single request to the track's own URL and extract the track info from there.
 						track_r = requests.get(bandcamp_base_url + "/track" + trackname).content.decode('utf-8')
 						rawinfo = ("{" + (str(track_r).split("trackinfo: [{", 1)[1].split("}]")[0]) + "} ")
-						trackinfo = json.loads(rawinfo.encode("ASCII", "ignore").decode())
+						trackinfo = json.loads(rawinfo)
 
 						# Insert the acquired data into the queue. 
 						bandcamp_queue.insert(i, trackinfo)
