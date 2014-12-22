@@ -76,16 +76,26 @@ if __name__ == "__main__":
 		try:
 			# Make sure that the output folder has the right path syntax
 			outputfolder = sys.argv[2].replace('\\', '/')
+
+			# Check if the path is relative or absolute. If relative, make it absolute.
 			if outputfolder[-1] != "/":
 				outputfolder = str(outputfolder) + "/"
+			if not os.path.isabs(outputfolder):
+				if not os.path.exists(os.path.split(os.path.abspath(__file__).replace('\\', '/'))[0] + "/" + outputfolder):
+					os.makedirs(os.path.split(os.path.abspath(__file__).replace('\\', '/'))[0] + "/" + outputfolder);
+
+				outputfolder = os.path.split(os.path.abspath(__file__).replace('\\', '/'))[0] + "/" + outputfolder
+
 		except:
-			outputfolder = os.path.dirname(__file__).replace('\\', '/') + "/"
+			# If no path is specified revert to the absolute path of the main file.
+			outputfolder = os.path.split(os.path.abspath(__file__).replace('\\', '/'))[0] + "/"
 
 		# Get the content from the supplied Bandcamp page
 		try:
 			r = requests.get(bandcamp_url).content.decode('utf-8')
 		except:
 			print("An error occurred while trying to access your supplied URL")
+			exit()
 
 		# Retrieve the base page URL, fetch the album art URL and create variables which will be used later on.
 		bandcamp_base_url = str(bandcamp_url).split("/")[0] + "//" + str(bandcamp_url).split("/")[2]
@@ -94,7 +104,7 @@ if __name__ == "__main__":
 		bandcamp_queue = []
 		bandcamp_artist = ""
 
-		# Find the artist name of the supplied Bandcamp page
+		# Find the artist name of the supplied Bandcamp page.
 		try:
 			bandcamp_artist = str(r).split("var BandData = {", 1)[1].split("}")[0].split('name : "')[1].split('",')[0]
 		except IndexError:
