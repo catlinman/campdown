@@ -36,7 +36,7 @@ def download_file(url, folder, name):
 
 			try:
 				for i in range(math.ceil(total_length / 1048575)):
-					response = requests.get(url, headers = {'Range': 'bytes=' + str(i * 1048576) + "-" + str((i + 1) * (1048576))}, stream = True)
+					response = requests.get(url, headers = {'Range': 'bytes=' + str(i * 1048576) + "-" + str((i + 1) * (1048576) - 1)}, stream = True)
 
 					for chunk in response.iter_content(chunk_size = block_size):
 						# Add the length of the chunk to the download size and write the chunk to the file.
