@@ -7,9 +7,10 @@ import json
 import string
 
 # Downloads a supplied file from a response.
-def download_file(response, folder, name):
+def download_file(url, folder, name):
 	# Get the size of the remote file.
-	total_length = response.headers.get('content-length')
+	full_response = requests.get(url, stream = True)
+	total_length = full_response.headers.get('content-length')
 
 	# Open a file stream which will be used to save the s
 	with open(folder + "/" + re.sub('[\\/:*?<>|]', "", name) + ".mp3", "wb") as f:
@@ -22,7 +23,7 @@ def download_file(response, folder, name):
 
 		# If the file is empty simply write out the returned content from the request.
 		if total_length is None:
-			f.write(response.content)
+			f.write(full_response.content)
 		else:
 			# Storage variables used while evaluating the already downloaded data.
 			dl = 0
@@ -31,16 +32,19 @@ def download_file(response, folder, name):
 			block_size = 2048
 
 			try:
-				for chunk in response.iter_content(chunk_size = block_size):
-					# Add the length of the chunk to the download size and write the chunk to the file.
-					dl += len(chunk)
-					f.write(chunk)
+				for i in range(math.ceil(total_length / 1048575)):
+					response = requests.get(url, headers = {'Range': 'bytes=' + str(i * 1048576) + "-" + str((i + 1) * (1048576))}, stream = True)
 
-					# Display a loading bar based on the currently download filesize.
-					done = int(50 * dl / total_length)
-					sys.stdout.write("\r[%s%s%s] %sMB / %sMB" % ('=' * done, ">", ' ' * (
-						50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
-					sys.stdout.flush()
+					for chunk in response.iter_content(chunk_size = block_size):
+						# Add the length of the chunk to the download size and write the chunk to the file.
+						dl += len(chunk)
+						f.write(chunk)
+
+						# Display a loading bar based on the currently download filesize.
+						done = int(50 * dl / total_length)
+						sys.stdout.write("\r[%s%s%s] %sMB / %sMB" % ('=' * done, ">", ' ' * (
+							50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
+						sys.stdout.flush()
 
 			except(KeyboardInterrupt):
 				# Close the filestream and remove the unfinished file if the user interrupts the download process.
@@ -195,25 +199,22 @@ if __name__ == "__main__":
 				except UnicodeEncodeError:
 					print('\n\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace").decode(), " is not openly available - skipping track"))
 
-			# Open the file download stream request.
-			response = requests.get(url, stream = True)
-
-			# print("REQUEST LENGTH: " +str(total_length) +" || FILE LENGTH: " +str(os.path.getsize(outputfolder + "/" + title + ".mp3")))
+			# print("REQUEST LENGTH: " +(requests.get(url, stream = True).headers.get('content-length')) +" || FILE LENGTH: " +str(os.path.getsize(outputfolder + "/" + title + ".mp3")))
 
 			# Check if the file doesn't exist and download it.
 			if os.path.isfile(outputfolder + "/" + title + ".mp3") == False:
-				download_file(response, outputfolder, title)
+				download_file(url, outputfolder, title)
 
 			# Inspect the already existing file's size and overwrite it, if it's smaller than the remote file.
-			elif os.path.getsize(outputfolder + "/" + title + ".mp3") < int(response.headers.get('content-length')):
+			elif os.path.getsize(outputfolder + "/" + title + ".mp3") < int(requests.get(url, stream = True).headers.get('content-length')) - 1:
 				print('\nRedownloading since the file size doesn\'t match up.')
-				download_file(response, outputfolder, title)
+				download_file(url, outputfolder, title)
 
 			else:
 				try:
-					print('\nSkipping  %s' % title)
+					print('\nSkipping %s' % title)
 				except UnicodeEncodeError:
-					print('\nSkipping  %s' % title.encode(sys.stdout.encoding, errors = "replace").decode())
+					print('\nSkipping %s' % title.encode(sys.stdout.encoding, errors = "replace").decode())
 				
 		print('\nFinished downloading all tracks')
 		
