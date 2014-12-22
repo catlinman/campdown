@@ -211,6 +211,7 @@ if __name__ == "__main__":
 						print('\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace").decode(), " is not openly available - skipping track"))
 					except UnicodeDecodeError:
 						print('\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace"), " is not openly available - skipping track"))
+				continue
 
 			# print("REQUEST LENGTH: " +(requests.get(url, stream = True).headers.get('content-length')) +" || FILE LENGTH: " +str(os.path.getsize(outputfolder + "/" + title + ".mp3")))
 
