@@ -15,11 +15,14 @@ def download_file(url, folder, name):
 	# Open a file stream which will be used to save the s
 	with open(folder + "/" + re.sub('[\\/:*?<>|]', "", name) + ".mp3", "wb") as f:
 		# Make sure that the printed string is compatible with the user's command line. Else, encode.
-		# This applies to all other print arguments throughout this file. 
+		# This applies to all other print arguments throughout this file.
 		try:
 			print('Downloading: %s' % name)
 		except UnicodeEncodeError:
-			print('Downloading: %s' % name.encode(sys.stdout.encoding, errors = "replace").decode())
+			try:
+				print('Downloading: %s' % name.encode(sys.stdout.encoding, errors = "replace").decode())
+			except UnicodeDecodeError:
+				print('Downloading: %s' % name.encode(sys.stdout.encoding, errors = "replace"))
 
 		# If the file is empty simply write out the returned content from the request.
 		if total_length is None:
@@ -126,8 +129,12 @@ if __name__ == "__main__":
 				try:
 					print('\nCreated album folder in %s%s - %s%s' %(outputfolder, bandcamp_artist, bandcamp_album, "/"))
 				except UnicodeEncodeError:
-					print('\nCreated album folder in %s%s - %s%s' %(outputfolder, bandcamp_artist.encode(sys.stdout.encoding, errors = "replace").decode(),
-						bandcamp_album.encode(sys.stdout.encoding, errors = "replace").decode(), "/"))
+					try:
+						print('\nCreated album folder in %s%s - %s%s' %(outputfolder, bandcamp_artist.encode(sys.stdout.encoding, errors = "replace").decode(),
+							bandcamp_album.encode(sys.stdout.encoding, errors = "replace").decode(), "/"))
+					except UnicodeDecodeError:
+						print('\nCreated album folder in %s%s - %s%s' %(outputfolder, bandcamp_artist.encode(sys.stdout.encoding, errors = "replace"),
+							bandcamp_album.encode(sys.stdout.encoding, errors = "replace"), "/"))
 
 				os.makedirs(outputfolder + "/" + bandcamp_artist + " - " + bandcamp_album + "/")
 
@@ -168,7 +175,10 @@ if __name__ == "__main__":
 		try:
 			print('\nWriting all output files to %s\n' %outputfolder)
 		except UnicodeEncodeError:
-			print('\nWriting all output files to %s\n' %outputfolder.encode(sys.stdout.encoding, errors = "replace").decode())
+			try:
+				print('\nWriting all output files to %s\n' %outputfolder.encode(sys.stdout.encoding, errors = "replace").decode())
+			except UnicodeDecodeError:
+				print('\nWriting all output files to %s\n' %outputfolder.encode(sys.stdout.encoding, errors = "replace"))
 		
 		# Start the process of downloading files from the queue.
 		for i in range(0, len(bandcamp_queue)):
@@ -197,13 +207,17 @@ if __name__ == "__main__":
 				try:
 					print('\n\n' + title + " is not openly available - skipping track")
 				except UnicodeEncodeError:
-					print('\n\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace").decode(), " is not openly available - skipping track"))
+					try:
+						print('\n\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace").decode(), " is not openly available - skipping track"))
+					except UnicodeDecodeError:
+						print('\n\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace"), " is not openly available - skipping track"))
 
 			# print("REQUEST LENGTH: " +(requests.get(url, stream = True).headers.get('content-length')) +" || FILE LENGTH: " +str(os.path.getsize(outputfolder + "/" + title + ".mp3")))
 
 			# Check if the file doesn't exist and download it.
 			if os.path.isfile(outputfolder + "/" + title + ".mp3") == False:
-				download_file(url, outputfolder, title)
+				# if "string" in title: - Filter out tracks with a certain tag.
+					download_file(url, outputfolder, title)
 
 			# Inspect the already existing file's size and overwrite it, if it's smaller than the remote file.
 			elif os.path.getsize(outputfolder + "/" + title + ".mp3") < int(requests.get(url, stream = True).headers.get('content-length')) - 1:
@@ -214,7 +228,10 @@ if __name__ == "__main__":
 				try:
 					print('\nSkipping %s' % title)
 				except UnicodeEncodeError:
-					print('\nSkipping %s' % title.encode(sys.stdout.encoding, errors = "replace").decode())
+					try:
+						print('\nSkipping %s' % title.encode(sys.stdout.encoding, errors = "replace").decode())
+					except UnicodeDecodeError:
+						print('\nSkipping %s' % title.encode(sys.stdout.encoding, errors = "replace"))
 				
 		print('\nFinished downloading all tracks')
 		
@@ -241,7 +258,10 @@ if __name__ == "__main__":
 			try:
 				print('Saved album art to %s%s%s' %(outputfolder, "/cover", bandcamp_art_url[-4:]))
 			except UnicodeEncodeError:
-				print('Saved album art to %s%s%s' %(outputfolder.encode(sys.stdout.encoding, errors = "replace").decode(), "/cover", bandcamp_art_url[-4:]))
+				try:
+					print('Saved album art to %s%s%s' %(outputfolder.encode(sys.stdout.encoding, errors = "replace").decode(), "/cover", bandcamp_art_url[-4:]))
+				except UnicodeDecodeError:
+					print('Saved album art to %s%s%s' %(outputfolder.encode(sys.stdout.encoding, errors = "replace"), "/cover", bandcamp_art_url[-4:]))
 
 	except (KeyboardInterrupt):
 		print("Double interrupt caught - exiting program...")
