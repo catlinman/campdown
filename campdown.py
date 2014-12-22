@@ -35,7 +35,7 @@ def download_file(url, folder, name):
 			block_size = 2048
 
 			try:
-				for i in range(math.ceil(total_length / 1048575)):
+				for i in range(math.ceil(total_length / 1048576)):
 					response = requests.get(url, headers = {'Range': 'bytes=' + str(i * 1048576) + "-" + str((i + 1) * (1048576) - 1)}, stream = True)
 
 					for chunk in response.iter_content(chunk_size = block_size):
@@ -205,12 +205,12 @@ if __name__ == "__main__":
 			except TypeError:
 				# If this is not possible, the desired file is not openly available.
 				try:
-					print('\n\n' + title + " is not openly available - skipping track")
+					print('\n' + title + " is not openly available - skipping track")
 				except UnicodeEncodeError:
 					try:
-						print('\n\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace").decode(), " is not openly available - skipping track"))
+						print('\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace").decode(), " is not openly available - skipping track"))
 					except UnicodeDecodeError:
-						print('\n\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace"), " is not openly available - skipping track"))
+						print('\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace"), " is not openly available - skipping track"))
 
 			# print("REQUEST LENGTH: " +(requests.get(url, stream = True).headers.get('content-length')) +" || FILE LENGTH: " +str(os.path.getsize(outputfolder + "/" + title + ".mp3")))
 
@@ -220,18 +220,18 @@ if __name__ == "__main__":
 					download_file(url, outputfolder, title)
 
 			# Inspect the already existing file's size and overwrite it, if it's smaller than the remote file.
-			elif os.path.getsize(outputfolder + "/" + title + ".mp3") < int(requests.get(url, stream = True).headers.get('content-length')) - 1:
+			elif os.path.getsize(outputfolder + "/" + title + ".mp3") < int(requests.get(url, stream = True).headers.get('content-length')):
 				print('\nRedownloading since the file size doesn\'t match up.')
 				download_file(url, outputfolder, title)
 
 			else:
 				try:
-					print('\nSkipping %s' % title)
+					print('\nFile found - skipping %s' % title)
 				except UnicodeEncodeError:
 					try:
-						print('\nSkipping %s' % title.encode(sys.stdout.encoding, errors = "replace").decode())
+						print('\nFile found - skipping %s' % title.encode(sys.stdout.encoding, errors = "replace").decode())
 					except UnicodeDecodeError:
-						print('\nSkipping %s' % title.encode(sys.stdout.encoding, errors = "replace"))
+						print('\nFile found - skipping %s' % title.encode(sys.stdout.encoding, errors = "replace"))
 				
 		print('\nFinished downloading all tracks')
 		
