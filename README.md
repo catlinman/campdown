@@ -20,6 +20,6 @@ This however also means that the downloaded tracks only come with a low bitrate 
 
 If you want the full quality of a given track you will have to buy it from Bandcamp as you usually would. Also, if you like a song or album you should probably think about supporting the artist/band.
 
-## Licence ##
+## License ##
 
 This repository is released under the MIT license. For more information please refer to [LICENSE](https://github.com/Catlinman/Campdown/blob/master/LICENSE)

@@ -4,7 +4,6 @@ import math
 import sys
 import requests
 import json
-import string
 
 # Downloads a supplied file from a response.
 def download_file(url, folder, name):
