@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import re
 import os
 import math
@@ -11,7 +13,7 @@ def download_file(url, folder, name):
 	full_response = requests.get(url, stream = True)
 	total_length = full_response.headers.get('content-length')
 
-	# Open a file stream which will be used to save the s
+	# Open a file stream which will be used to save the output string
 	with open(folder + "/" + re.sub('[\\/:*?<>|]', "", name) + ".mp3", "wb") as f:
 		# Make sure that the printed string is compatible with the user's command line. Else, encode.
 		# This applies to all other print arguments throughout this file.
@@ -26,6 +28,7 @@ def download_file(url, folder, name):
 		# If the file is empty simply write out the returned content from the request.
 		if total_length is None:
 			f.write(full_response.content)
+
 		else:
 			# Storage variables used while evaluating the already downloaded data.
 			dl = 0
@@ -62,7 +65,7 @@ if __name__ == "__main__":
 	try:
 		# Fetch the program arguments and make sure that they are valid.
 		try:
-			bandcamp_url = sys.argv[1].replace('\\', '/').replace('"', '')
+			bandcamp_url = sys.argv[1].replace('"', '')
 
 		except:
 			print('\nMissing required URL argument')
@@ -77,8 +80,8 @@ if __name__ == "__main__":
 			outputfolder = sys.argv[2].replace('\\', '/')
 
 			# Check if the path is relative or absolute. If relative, make it absolute.
-			if outputfolder[-1] != "/":
-				outputfolder = str(outputfolder) + "/"
+			if outputfolder[-1] != "/": outputfolder = str(outputfolder) + "/"
+			
 			if not os.path.isabs(outputfolder):
 				if not os.path.exists(os.path.split(os.path.abspath(__file__).replace('\\', '/'))[0] + "/" + outputfolder):
 					os.makedirs(os.path.split(os.path.abspath(__file__).replace('\\', '/'))[0] + "/" + outputfolder);
@@ -92,6 +95,7 @@ if __name__ == "__main__":
 		# Get the content from the supplied Bandcamp page
 		try:
 			r = requests.get(bandcamp_url).content.decode('utf-8')
+
 		except:
 			print("An error occurred while trying to access your supplied URL")
 			exit()
@@ -106,9 +110,11 @@ if __name__ == "__main__":
 		# Find the artist name of the supplied Bandcamp page.
 		try:
 			bandcamp_artist = str(r).split("var BandData = {", 1)[1].split("}")[0].split('name : "')[1].split('",')[0]
+
 		except IndexError:
 			try:
 				bandcamp_artist = str(r).split("var BandData = {", 1)[1].split("}")[0].split('name: "')[1].split('",')[0]
+
 			except:
 				print("\nFailed to fetch the band title")
 
@@ -126,8 +132,10 @@ if __name__ == "__main__":
 			try:
 				bandcamp_album = str(r).split(
 					'<span itemprop="name">')[1].split("</span>")[0]
+
 			except IndexError:
 			   bandcamp_album = ""
+
 		else:
 			# Since the supplied URL was detected to be an album URL, we extract the name of the album.
 			bandcamp_isAlbum = True
@@ -137,10 +145,12 @@ if __name__ == "__main__":
 			if not os.path.exists(outputfolder + "/" + bandcamp_artist + " - " + bandcamp_album + "/"):
 				try:
 					print('\nCreated album folder in %s%s - %s%s' %(outputfolder, bandcamp_artist, bandcamp_album, "/"))
+
 				except UnicodeEncodeError:
 					try:
 						print('\nCreated album folder in %s%s - %s%s' %(outputfolder, bandcamp_artist.encode(sys.stdout.encoding, errors = "replace").decode(),
 							bandcamp_album.encode(sys.stdout.encoding, errors = "replace").decode(), "/"))
+
 					except UnicodeDecodeError:
 						print('\nCreated album folder in %s%s - %s%s' %(outputfolder, bandcamp_artist.encode(sys.stdout.encoding, errors = "replace"),
 							bandcamp_album.encode(sys.stdout.encoding, errors = "replace"), "/"))
@@ -153,6 +163,7 @@ if __name__ == "__main__":
 
 			# Iterate over the tracks found and begin traversing the given track's title information.
 			print('\nListing found tracks')
+
 			for i, track in enumerate(bandcamp_album_tracks):
 				position = track.find('<a href="/track')
 
@@ -161,8 +172,7 @@ if __name__ == "__main__":
 					position = position + len('<a href="/track')
 					trackname = ""
 
-					while track[position] != '"':
-						trackname = trackname + track[position]
+					while track[position] != '"': trackname = trackname + track[position]
 						position = position + 1
 
 					if trackname != "":
@@ -183,9 +193,11 @@ if __name__ == "__main__":
 		# Once again differentiating between and encoded output folder string and the normal string to avoid command line encoding errors.
 		try:
 			print('\nWriting all output files to %s\n' %outputfolder)
+
 		except UnicodeEncodeError:
 			try:
 				print('\nWriting all output files to %s\n' %outputfolder.encode(sys.stdout.encoding, errors = "replace").decode())
+
 			except UnicodeDecodeError:
 				print('\nWriting all output files to %s\n' %outputfolder.encode(sys.stdout.encoding, errors = "replace"))
 		
@@ -200,24 +212,29 @@ if __name__ == "__main__":
 
 				if bandcamp_isAlbum:
 					title = partialtitle[0] + " - " + bandcamp_album + " - " + str(i + 1) + " " + partialtitle[1]
+
 				else:
 					title = partialtitle[0] + " - " + bandcamp_album + " - " + partialtitle[1]
 			else:
 				if bandcamp_isAlbum:
 					title = bandcamp_artist + " - " + bandcamp_album + " - " + str(i + 1) + " " + title
+
 				else:
 					title = bandcamp_artist + " - " + bandcamp_album + " - " + title
 
 			try:
 				# Retrieve the MP3 file URL from the queue-item.
 				url = bandcamp_queue[i]["file"]["mp3-128"]
+
 			except TypeError:
 				# If this is not possible, the desired file is not openly available.
 				try:
 					print('\n' + title + " is not openly available - skipping track")
+
 				except UnicodeEncodeError:
 					try:
 						print('\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace").decode(), " is not openly available - skipping track"))
+
 					except UnicodeDecodeError:
 						print('\n%s%s' %(title.encode(sys.stdout.encoding, errors = "replace"), " is not openly available - skipping track"))
 				continue
@@ -227,7 +244,7 @@ if __name__ == "__main__":
 			# Check if the file doesn't exist and download it.
 			if os.path.isfile(outputfolder + "/" + title + ".mp3") == False:
 				# if "string" in title: - Filter out tracks with a certain tag.
-					download_file(url, outputfolder, title)
+				download_file(url, outputfolder, title)
 
 			# Inspect the already existing file's size and overwrite it, if it's smaller than the remote file.
 			elif os.path.getsize(outputfolder + "/" + title + ".mp3") < int(requests.get(url, stream = True).headers.get('content-length')):
@@ -237,9 +254,11 @@ if __name__ == "__main__":
 			else:
 				try:
 					print('\nFile found - skipping %s' % title)
+
 				except UnicodeEncodeError:
 					try:
 						print('\nFile found - skipping %s' % title.encode(sys.stdout.encoding, errors = "replace").decode())
+
 					except UnicodeDecodeError:
 						print('\nFile found - skipping %s' % title.encode(sys.stdout.encoding, errors = "replace"))
 				
@@ -267,9 +286,11 @@ if __name__ == "__main__":
 				sys.exit(2)
 			try:
 				print('Saved album art to %s%s%s' %(outputfolder, "/cover", bandcamp_art_url[-4:]))
+
 			except UnicodeEncodeError:
 				try:
 					print('Saved album art to %s%s%s' %(outputfolder.encode(sys.stdout.encoding, errors = "replace").decode(), "/cover", bandcamp_art_url[-4:]))
+					
 				except UnicodeDecodeError:
 					print('Saved album art to %s%s%s' %(outputfolder.encode(sys.stdout.encoding, errors = "replace"), "/cover", bandcamp_art_url[-4:]))
 
