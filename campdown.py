@@ -19,9 +19,11 @@ def download_file(url, folder, name):
 		# This applies to all other print arguments throughout this file.
 		try:
 			print('Downloading: %s' % name)
+			
 		except UnicodeEncodeError:
 			try:
 				print('Downloading: %s' % name.encode(sys.stdout.encoding, errors = "replace").decode())
+
 			except UnicodeDecodeError:
 				print('Downloading: %s' % name.encode(sys.stdout.encoding, errors = "replace"))
 
@@ -172,7 +174,8 @@ if __name__ == "__main__":
 					position = position + len('<a href="/track')
 					trackname = ""
 
-					while track[position] != '"': trackname = trackname + track[position]
+					while track[position] != '"':
+						trackname = trackname + track[position]
 						position = position + 1
 
 					if trackname != "":
