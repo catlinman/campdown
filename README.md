@@ -22,4 +22,4 @@ If you want the full quality of a given track you will have to buy it from Bandc
 
 ## License ##
 
-This repository is released under the MIT license. For more information please refer to [LICENSE](https://github.com/Catlinman/Campdown/blob/master/LICENSE)
+This repository is released under the MIT license. For more information please refer to [LICENSE](https://github.com/catlinman/campdown/blob/master/LICENSE)
