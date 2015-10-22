@@ -6,6 +6,7 @@ import math
 import sys
 import requests
 import json
+import html
 
 # Downloads a supplied file from a response.
 def download_file(url, folder, name):
@@ -111,11 +112,11 @@ if __name__ == "__main__":
 
 		# Find the artist name of the supplied Bandcamp page.
 		try:
-			bandcamp_artist = str(r).split("var BandData = {", 1)[1].split("}")[0].split('name : "')[1].split('",')[0]
+			bandcamp_artist = html.unescape(str(r).split("var BandData = {", 1)[1].split("}")[0].split('name : "')[1].split('",')[0]).replace('/', '&')
 
 		except IndexError:
 			try:
-				bandcamp_artist = str(r).split("var BandData = {", 1)[1].split("}")[0].split('name: "')[1].split('",')[0]
+				bandcamp_artist = html.unescape(str(r).split("var BandData = {", 1)[1].split("}")[0].split('name: "')[1].split('",')[0]).replace('/', '&')
 
 			except:
 				print("\nFailed to fetch the band title")
@@ -132,8 +133,7 @@ if __name__ == "__main__":
 
 			# Add the name of the album this single track might belong to, to the information that will make up the output filename. 
 			try:
-				bandcamp_album = str(r).split(
-					'<span itemprop="name">')[1].split("</span>")[0]
+				bandcamp_album = html.unescape(str(r).split('<span itemprop="name">')[1].split("</span>")[0]).replace('/', '&')
 
 			except IndexError:
 				bandcamp_album = ""
@@ -141,7 +141,7 @@ if __name__ == "__main__":
 		else:
 			# Since the supplied URL was detected to be an album URL, we extract the name of the album.
 			bandcamp_isAlbum = True
-			bandcamp_album = re.sub('[:*?<>|]', '', str(r).split('<meta name="Description" content=')[1].split(" by ")[0][2:])
+			bandcamp_album = html.unescape(re.sub('[:*?<>|]', '', str(r).split('<meta name="Description" content=')[1].split(" by ")[0][2:])).replace('/', '&')
 
 			# Create a new album folder if it doesn't already exist.
 			if not os.path.exists(outputfolder + "/" + bandcamp_artist + " - " + bandcamp_album + "/"):
