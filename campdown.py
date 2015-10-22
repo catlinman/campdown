@@ -136,7 +136,7 @@ if __name__ == "__main__":
 					'<span itemprop="name">')[1].split("</span>")[0]
 
 			except IndexError:
-			   bandcamp_album = ""
+				bandcamp_album = ""
 
 		else:
 			# Since the supplied URL was detected to be an album URL, we extract the name of the album.
@@ -228,6 +228,10 @@ if __name__ == "__main__":
 			try:
 				# Retrieve the MP3 file URL from the queue-item.
 				url = bandcamp_queue[i]["file"]["mp3-128"]
+
+				# Add in http for those times when Bandcamp is rude.
+				if url[:2] == "//":
+					url = "http:" + url
 
 			except TypeError:
 				# If this is not possible, the desired file is not openly available.
