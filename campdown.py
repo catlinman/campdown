@@ -112,11 +112,11 @@ if __name__ == "__main__":
 
 		# Find the artist name of the supplied Bandcamp page.
 		try:
-			bandcamp_artist = html.unescape(str(r).split("var BandData = {", 1)[1].split("}")[0].split('name : "')[1].split('",')[0]).replace('/', '&')
+			bandcamp_artist = html.unescape(str(r).split("var BandData = {", 1)[1].split("}")[0].split('name : "')[1].split('",')[0]).replace('/', '&').replace('\\', '').replace('"', '')
 
 		except IndexError:
 			try:
-				bandcamp_artist = html.unescape(str(r).split("var BandData = {", 1)[1].split("}")[0].split('name: "')[1].split('",')[0]).replace('/', '&')
+				bandcamp_artist = html.unescape(str(r).split("var BandData = {", 1)[1].split("}")[0].split('name: "')[1].split('",')[0]).replace('/', '&').replace('\\', '').replace('"', '')
 
 			except:
 				print("\nFailed to fetch the band title")
@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
 			# Add the name of the album this single track might belong to, to the information that will make up the output filename. 
 			try:
-				bandcamp_album = html.unescape(str(r).split('<span itemprop="name">')[1].split("</span>")[0]).replace('/', '&')
+				bandcamp_album = html.unescape(str(r).split('<span itemprop="name">')[1].split("</span>")[0]).replace('/', '&').replace('\\', '').replace('"', '')
 
 			except IndexError:
 				bandcamp_album = ""
@@ -141,7 +141,7 @@ if __name__ == "__main__":
 		else:
 			# Since the supplied URL was detected to be an album URL, we extract the name of the album.
 			bandcamp_isAlbum = True
-			bandcamp_album = html.unescape(re.sub('[:*?<>|]', '', str(r).split('<meta name="Description" content=')[1].split(" by ")[0][2:])).replace('/', '&')
+			bandcamp_album = html.unescape(re.sub('[:*?<>|]', '', str(r).split('<meta name="Description" content=')[1].split(" by ")[0][2:]))
 
 			# Create a new album folder if it doesn't already exist.
 			if not os.path.exists(outputfolder + "/" + bandcamp_artist + " - " + bandcamp_album + "/"):
@@ -207,7 +207,7 @@ if __name__ == "__main__":
 		# Start the process of downloading files from the queue.
 		for i in range(0, len(bandcamp_queue)):
 			# Get the title of the current queue-item.
-			title = bandcamp_queue[i]["title"]
+			title = bandcamp_queue[i]["title"].replace('"', '')
 
 			# Create beautiful track name formatting. This makes the output filename look good.
 			if title.find(" - ") != -1:
