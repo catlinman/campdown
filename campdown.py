@@ -1,364 +1,433 @@
 #!/usr/bin/env python
 
-import re
 import os
-import math
 import sys
-import requests
+import math
+import re
 import json
 import html
+import requests
 
-# Downloads a supplied file from a response.
 
+def safe_print(string):
+    '''
+    Print to the console while avoiding encoding errors
 
-def download_file(url, folder, name):
-    # Get the size of the remote file.
-    full_response = requests.get(url, stream=True)
-    total_length = full_response.headers.get('content-length')
+    Args:
+        string (str): string to print to the console without encoding errors.
+    '''
 
-    # Open a file stream which will be used to save the output string
-    with open(folder + "/" + re.sub('[\\/:*?<>|]', "", name) + ".mp3", "wb") as f:
-        # Make sure that the printed string is compatible with the user's command line. Else, encode.
-        # This applies to all other print arguments throughout this file.
+    try:
+        print(string)
+
+    except UnicodeEncodeError:
         try:
-            print('Downloading: %s' % name)
+            print(string.encode(
+                sys.stdout.encoding, errors="replace").decode())
 
-        except UnicodeEncodeError:
-            try:
-                print('Downloading: %s' % name.encode(
-                    sys.stdout.encoding, errors="replace").decode())
+        except UnicodeDecodeError:
+            print(string.encode(
+                sys.stdout.encoding, errors="replace"))
 
-            except UnicodeDecodeError:
-                print('Downloading: %s' % name.encode(
-                    sys.stdout.encoding, errors="replace"))
 
-        # If the file is empty simply write out the returned content from the
-        # request.
-        if total_length is None:
-            f.write(full_response.content)
+def safe_path(string):
+    '''
+    Convert a path string into one without illegal characters
+
+    Args:
+        string (str): the path to remove illegal characters from.
+
+    Returns:
+        new path string without illegal characters.
+    '''
+    return string.replace('/', '&').replace('\\', '').replace('"', '')
+
+
+def string_between(string, start, end):
+    '''
+    Returns a new string between the start and end range.
+
+    Args:
+        string (str): the string to split.
+        start (str): string to start the split at.
+        end (str): string to stop the split at.
+
+    Returns:
+        new string between start and end.
+    '''
+    return string.split(start, 1)[1].split(end)[0]
+
+
+def format_information(track_title, track_artist, track_album="", track_number=0):
+    '''
+    Takes in track information and returns everything as a formatted String.
+
+    Args:
+        track_title (str): track title string
+        track_artist (str): track artist string
+        track_album (str): optional track album string
+        track_number (str): optional track number string
+
+    Returns:
+        A formatted string of all track information.
+    '''
+
+    if " - " in track_title:
+        split_title = str(track_title).split(" - ", 1)
+
+        if track_album:
+            if track_number:
+                return "{} - {} - {} {}".format(split_title[0], track_album, track_number, split_title[1])
+
+            else:
+                return "{} - {} - {}".format(split_title[0], track_album, split_title[1])
 
         else:
-            # Storage variables used while evaluating the already downloaded
-            # data.
-            dl = 0
-            total_length = int(total_length)
-            cleaned_length = int((total_length * 100) / pow(1024, 2)) / 100
-            block_size = 2048
+            if track_number:
+                return "{} - {} {}".format(split_title[0], track_number, split_title[1])
 
-            try:
-                for i in range(math.ceil(total_length / 1048576)):
-                    response = requests.get(url, headers={
-                                            'Range': 'bytes=' + str(i * 1048576) + "-" + str((i + 1) * (1048576) - 1)}, stream=True)
+            else:
+                return "{} - {}".format(split_title[0], split_title[1])
+    else:
+        if track_album:
+            if track_number:
+                return "{} - {} - {} {}".format(track_artist, track_album, track_number, track_title)
 
-                    for chunk in response.iter_content(chunk_size=block_size):
-                        # Add the length of the chunk to the download size and
-                        # write the chunk to the file.
-                        dl += len(chunk)
-                        f.write(chunk)
+            else:
+                return "{} - {} - {}".format(track_artist, track_album, track_title)
 
-                        # Display a loading bar based on the currently download
-                        # filesize.
-                        done = int(50 * dl / total_length)
-                        sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ('=' * done, ">", ' ' * (
-                            50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
-                        sys.stdout.flush()
+        else:
+            if track_number:
+                return "{} - {} {}".format(track_artist, track_number, track_title)
 
-            except(KeyboardInterrupt):
-                # Close the filestream and remove the unfinished file if the
-                # user interrupts the download process.
-                f.close()
-                print('\nKeyboardInterrupt caught - skipping track')
-                os.remove(folder + "/" + name + ".mp3")
+            else:
+                return "{} - {}".format(track_artist, track_title)
 
-    # Insert a new line for formatting-OCD's sake.
-    print('\n')
 
-# Check that this file's main function is not being called from another file.
-if __name__ == "__main__":
-    try:
-        # Fetch the program arguments and make sure that they are valid.
-        try:
-            bandcamp_url = sys.argv[1].replace('"', '')
+def download_file(url, output_folder, output_name, force=False, verbose=False):
+    '''
+    Downloads and saves a file from the supplied URL and prints progress
+    to the console. Uses ranged requests to make downloads from Bandcamp faster.
+    Returns 0 if the download failed, 1 if the download was successfull and 2 if
+    the download file was already found and has the same file size.
 
-        except:
-            print('\nMissing required URL argument')
+    Args:
+        url (str): URL to make the request to.
+        output_folder (str): absolute folder path to write to.
+        output_name (str): filename with extension to write the content to.
+        force (bool): ignores checking if the file already exists.
+        verbose (bool): prints status messages as well as download progress.
+
+    Returns:
+        1 if the download and write is successfull
+        2 if the file already exists
+        r.status_code if a connection error occurred
+    '''
+
+    if verbose:
+        safe_print('\nDownloading: {}'.format(output_name))
+
+    # Get the size of the remote file through a streamed request.
+    r = requests.get(url, stream=True)
+
+    if r.status_code != 200:
+        if verbose:
+            print("Request error {}".format(r.status_code))
+
+        return r.status_code
+
+    total_length = r.headers.get('content-length')
+
+    if not force:
+        if os.path.isfile(os.path.join(output_folder, output_name)):
+            if int(os.path.getsize(os.path.join(output_folder, output_name))) != int(total_length):
+                if verbose:
+                    print(
+                        'File already found but the file size doesn\'t match up. Redownloading.')
+
+            else:
+                if verbose:
+                    print('File already found. Skipping download.')
+
+                return 2
+
+    # Open a file stream which will be used to save the output string
+    with open(output_folder + "/" + re.sub('[\\/:*?<>|]', "", output_name), "wb") as f:
+        # Storage variables used while evaluating the already downloaded data.
+        dl = 0
+        total_length = int(total_length)
+        cleaned_length = int((total_length * 100) / pow(1024, 2)) / 100
+        block_size = 2048
+
+        for i in range(math.ceil(total_length / 1048576)):
+            response = requests.get(url, headers={
+                'Range': 'bytes=' + str(i * 1048576) + "-" + str((i + 1) * (1048576) - 1)}, stream=True)
+
+            for chunk in response.iter_content(chunk_size=block_size):
+                # Add the length of the chunk to the download size and
+                # write the chunk to the file.
+                dl += len(chunk)
+                f.write(chunk)
+
+                if verbose:
+                    # Display a bar based on the current download progress.
+                    done = int(50 * dl / total_length)
+                    sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ('=' * done, ">", ' ' * (
+                        50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
+                    sys.stdout.flush()
+
+        # Insert a new line to improve console formatting.
+        if verbose:
+            print()
+
+    return 1
+
+
+class Campdown:
+    '''
+    Main class of the Campdown Bandcamp downloader.
+    '''
+
+    def __init__(self, url, out):
+        '''
+        Init method of Campdown.
+
+        Args:
+            url (str): Bandcamp URL to analyse and download from.
+            out (str): relative or absolute path to write to.
+        '''
+        self.artist = ""
+        self.album = ""
+        self.track = ""
+
+        self.is_album = False
+        self.is_mainpage = False
+
+        self.queue = []
+
+        self.url = url
+        self.output = out
+
+        self.script_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), '')
+
+        if not "http://" in self.url and not "https://" in self.url:
+            print('\n%s is not a valid URL' % self.url)
             sys.exit(2)
 
-        if not "http://" in bandcamp_url and not "https://" in bandcamp_url:
-            print('\n%s is not a valid URL' % bandcamp_url)
-            sys.exit(2)
-
-        try:
+        if self.output:
             # Make sure that the output folder has the right path syntax
-            outputfolder = sys.argv[2].replace('\\', '/')
+            if not os.path.isabs(self.output):
+                if not os.path.exists(os.path.join(self.script_path, self.output)):
+                    os.makedirs(os.path.join(self.script_path, self.output))
 
-            # Check if the path is relative or absolute. If relative, make it
-            # absolute.
-            if outputfolder[-1] != "/":
-                outputfolder = str(outputfolder) + "/"
+                self.output = os.path.join(self.script_path, self.output)
 
-            if not os.path.isabs(outputfolder):
-                if not os.path.exists(os.path.split(os.path.abspath(__file__).replace('\\', '/'))[0] + "/" + outputfolder):
-                    os.makedirs(os.path.split(os.path.abspath(
-                        __file__).replace('\\', '/'))[0] + "/" + outputfolder)
+        else:
+            # If no path is specified use the absolute path of the main file.
+            self.output = self.script_path
 
-                outputfolder = os.path.split(os.path.abspath(
-                    __file__).replace('\\', '/'))[0] + "/" + outputfolder
+    def run(self):
+        '''
+        Begins downloading the content from the prepared settings.
+        '''
 
-        except:
-            # If no path is specified revert to the absolute path of the main
-            # file.
-            outputfolder = os.path.split(os.path.abspath(
-                __file__).replace('\\', '/'))[0] + "/"
+        # Get the content from the supplied Bandcamp URL.
+        main_request = requests.get(self.url)
+        main_content = main_request.content.decode('utf-8')
 
-        # Get the content from the supplied Bandcamp page
-        try:
-            r = requests.get(bandcamp_url).content.decode('utf-8')
+        if main_request.status_code != 200:
+            print("An error occurred while trying to access your supplied URL. Status code: {}".format(
+                main_request.status_code))
 
-        except:
-            print("An error occurred while trying to access your supplied URL")
-            exit()
+            return
 
         # Retrieve the base page URL, fetch the album art URL and create
         # variables which will be used later on.
-        bandcamp_base_url = str(bandcamp_url).split(
-            "/")[0] + "//" + str(bandcamp_url).split("/")[2]
-        bandcamp_art_url = str(r).split(
-            '<a class="popupImage" href="', 1)[1].split('">')[0]
-        bandcamp_isAlbum = False
-        bandcamp_queue = []
-        bandcamp_artist = ""
+        self.base_url = "{}//{}".format(str(self.url).split("/")[
+            0], str(self.url).split("/")[2])
+
+        self.art_url = string_between(
+            main_content, '<a class="popupImage" href="', '">')
 
         # Find the artist name of the supplied Bandcamp page.
         try:
-            bandcamp_artist = html.unescape(str(r).split("var BandData = {", 1)[1].split("}")[0].split(
-                'name : "')[1].split('",')[0]).replace('/', '&').replace('\\', '').replace('"', '')
+            self.artist = html.unescape(string_between(
+                string_between(str(main_content), "var BandData = {", "}"), 'name : "', '",'))
 
         except IndexError:
             try:
-                bandcamp_artist = html.unescape(str(r).split("var BandData = {", 1)[1].split("}")[0].split(
-                    'name: "')[1].split('",')[0]).replace('/', '&').replace('\\', '').replace('"', '')
+                self.artist = html.unescape(string_between(
+                    string_between(str(main_content), "var BandData = {", "}"), 'name: "', '",'))
 
             except:
-                print("\nFailed to fetch the band title")
+                print("\nFailed to fetch the band/artist title")
 
         # We check if the page has a track list or not. If not, we only fetch
         # the track info for the one track on the given Bandcamp page.
-        if str(r).find("track_list") == -1:
+        if not "track_list" in str(main_content):
             # Extract the unformatted JSON array from the request's content.
             # Convert it to an actual Python array afterwards.
-            rawinfo = (
-                "{" + (str(r).split("trackinfo: [{", 1)[1].split("}]")[0]) + "} ")
-            trackinfo = json.loads(rawinfo)
+            raw_info = "{" + \
+                string_between(str(main_content),
+                               "trackinfo: [{", "}]") + "}"
+
+            track_info = json.loads(raw_info)
 
             # Insert the track data into the queue and inform the downloader
             # that it's not an album.
-            bandcamp_queue.insert(1, trackinfo)
-            bandcamp_isAlbum = False
+            self.queue.insert(1, track_info)
 
             # Add the name of the album this single track might belong to, to
             # the information that will make up the output filename.
             try:
-                bandcamp_album = html.unescape(str(r).split('<span itemprop="name">')[1].split(
-                    "</span>")[0]).replace('/', '&').replace('\\', '').replace('"', '')
+                self.album = html.unescape(string_between(
+                    main_content, '<span itemprop="name">', "</span>"))
 
             except IndexError:
-                bandcamp_album = ""
+                self.album = ""
 
         else:
             # Since the supplied URL was detected to be an album URL, we
             # extract the name of the album.
-            bandcamp_isAlbum = True
-            bandcamp_album = html.unescape(re.sub('[:*?<>|]', '', str(r).split('<meta name="Description" content=')[
-                                           1].split(" by ")[0][2:])).replace('/', '&').replace('\\', '').replace('"', '')
+            self.album = html.unescape(re.sub(
+                '[:*?<>|]', '', string_between(str(main_content), '<meta name="Description" content=', " by ")[2:]))
+
+            # Flag output to write to a folder since we have multiple files.
+            is_album = True
 
             # Create a new album folder if it doesn't already exist.
-            if not os.path.exists(outputfolder + "/" + bandcamp_artist + " - " + bandcamp_album + "/"):
-                try:
-                    print('\nCreated album folder in %s%s - %s%s' %
-                          (outputfolder, bandcamp_artist, bandcamp_album, "/"))
+            if not os.path.exists(os.path.join(self.output, self.artist + " - " + self.album)):
+                safe_print('\nCreated album folder in {}{} - {}{}'.format(
+                    self.output, self.artist, self.album, "/"))
 
-                except UnicodeEncodeError:
-                    try:
-                        print('\nCreated album folder in %s%s - %s%s' % (outputfolder, bandcamp_artist.encode(sys.stdout.encoding, errors="replace").decode(),
-                                                                         bandcamp_album.encode(sys.stdout.encoding, errors="replace").decode(), "/"))
-
-                    except UnicodeDecodeError:
-                        print('\nCreated album folder in %s%s - %s%s' % (outputfolder, bandcamp_artist.encode(sys.stdout.encoding, errors="replace"),
-                                                                         bandcamp_album.encode(sys.stdout.encoding, errors="replace"), "/"))
-
-                os.makedirs(outputfolder + "/" + bandcamp_artist +
-                            " - " + bandcamp_album + "/")
+                os.makedirs(self.output + "/" + self.artist +
+                            " - " + self.album + "/")
 
             # Extract the string of tracks from the request's response content.
             # Convert the individual titles to single entries for use in an
             # array.
-            bandcamp_album_tracktable = str(r).split(
+            album_tracktable = str(main_content).split(
                 '<table class="track_list track_table" id="track_table">', 1)[1].split('</table>')[0]
-            bandcamp_album_tracks = bandcamp_album_tracktable.split("<tr")
+
+            album_tracks = album_tracktable.split("<tr")
 
             # Iterate over the tracks found and begin traversing the given
             # track's title information.
             print('\nListing found tracks')
 
-            for i, track in enumerate(bandcamp_album_tracks):
+            for i, track in enumerate(album_tracks):
                 position = track.find('<a href="/track')
 
                 if position != -1:
                     # Find the track's name.
                     position = position + len('<a href="/track')
-                    trackname = ""
+                    track_name = ""
 
                     while track[position] != '"':
-                        trackname = trackname + track[position]
+                        track_name = track_name + track[position]
                         position = position + 1
 
-                    if trackname != "":
-                        print(bandcamp_base_url + "/track" + trackname)
+                    if track_name != "":
+                        print(self.base_url + "/track" + track_name)
 
                         # Make a single request to the track's own URL and
                         # extract the track info from there.
-                        track_r = requests.get(
-                            bandcamp_base_url + "/track" + trackname).content.decode('utf-8')
-                        rawinfo = (
-                            "{" + (str(track_r).split("trackinfo: [{", 1)[1].split("}]")[0]) + "} ")
-                        trackinfo = json.loads(rawinfo)
+                        track_request = requests.get(
+                            self.base_url + "/track" + track_name).content.decode('utf-8')
+
+                        raw_info = "{" + string_between(
+                            str(track_request), "trackinfo: [{", "}]") + "}"
+
+                        track_info = json.loads(raw_info)
 
                         # Insert the acquired data into the queue.
-                        bandcamp_queue.insert(i, trackinfo)
+                        self.queue.insert(i, track_info)
 
-        if bandcamp_isAlbum:
+        if self.is_album:
             # Since we know that the downloader is fetching an album we might
             # as well sum up the output string for easier encoding.
-            outputfolder = outputfolder + bandcamp_artist + " - " + bandcamp_album
+            self.output = self.output + self.artist + " - " + self.album
 
-        # Once again differentiating between and encoded output folder string
-        # and the normal string to avoid command line encoding errors.
-        try:
-            print('\nWriting all output files to %s\n' % outputfolder)
+        safe_print(
+            '\nWriting all output files to {}'.format(self.output))
 
-        except UnicodeEncodeError:
-            try:
-                print('\nWriting all output files to %s\n' % outputfolder.encode(
-                    sys.stdout.encoding, errors="replace").decode())
-
-            except UnicodeDecodeError:
-                print('\nWriting all output files to %s\n' %
-                      outputfolder.encode(sys.stdout.encoding, errors="replace"))
+        # Store the track index in case it's an album queue.
+        track_index = 0
 
         # Start the process of downloading files from the queue.
-        for i in range(0, len(bandcamp_queue)):
+        for i in range(0, len(self.queue)):
+
+            if self.is_album:
+                track_index += 1
+
             # Get the title of the current queue-item.
-            title = bandcamp_queue[i]["title"].replace('"', '')
-
-            # Create beautiful track name formatting. This makes the output
-            # filename look good.
-            if title.find(" - ") != -1:
-                partialtitle = str(title).split(" - ", 1)
-
-                if bandcamp_isAlbum:
-                    title = partialtitle[
-                        0] + " - " + bandcamp_album + " - " + str(i + 1) + " " + partialtitle[1]
-
-                else:
-                    title = partialtitle[0] + " - " + \
-                        bandcamp_album + " - " + partialtitle[1]
-            else:
-                if bandcamp_isAlbum:
-                    title = bandcamp_artist + " - " + bandcamp_album + \
-                        " - " + str(i + 1) + " " + title
-
-                else:
-                    title = bandcamp_artist + " - " + bandcamp_album + " - " + title
+            self.track = format_information(
+                self.queue[i]["title"].replace('"', ''), self.artist, self.album, track_index)
 
             try:
                 # Retrieve the MP3 file URL from the queue-item.
-                url = bandcamp_queue[i]["file"]["mp3-128"]
+                url = self.queue[i]["file"]["mp3-128"]
 
                 # Add in http for those times when Bandcamp is rude.
                 if url[:2] == "//":
                     url = "http:" + url
 
             except TypeError:
-                # If this is not possible, the desired file is not openly
-                # available.
-                try:
-                    print('\n' + title + " is not openly available - skipping track")
+                safe_print(
+                    '\n {} is not openly available - skipping track'.format(title))
 
-                except UnicodeEncodeError:
-                    try:
-                        print('\n%s%s' % (title.encode(sys.stdout.encoding, errors="replace").decode(
-                        ), " is not openly available - skipping track"))
-
-                    except UnicodeDecodeError:
-                        print('\n%s%s' % (title.encode(
-                            sys.stdout.encoding, errors="replace"), " is not openly available - skipping track"))
-                continue
-
-            # print("REQUEST LENGTH: " +(requests.get(url, stream = True).headers.get('content-length')) +" || FILE LENGTH: " +str(os.path.getsize(outputfolder + "/" + title + ".mp3")))
-
-            # Check if the file doesn't exist and download it.
-            if os.path.isfile(outputfolder + "/" + title + ".mp3") == False:
-                # if "string" in title: - Filter out tracks with a certain tag.
-                download_file(url, outputfolder, title)
-
-            # Inspect the already existing file's size and overwrite it, if
-            # it's smaller than the remote file.
-            elif os.path.getsize(outputfolder + "/" + title + ".mp3") < int(requests.get(url, stream=True).headers.get('content-length')):
-                print('\nRedownloading since the file size doesn\'t match up.')
-                download_file(url, outputfolder, title)
-
-            else:
-                try:
-                    print('\nFile found - skipping %s' % title)
-
-                except UnicodeEncodeError:
-                    try:
-                        print('\nFile found - skipping %s' %
-                              title.encode(sys.stdout.encoding, errors="replace").decode())
-
-                    except UnicodeDecodeError:
-                        print('\nFile found - skipping %s' %
-                              title.encode(sys.stdout.encoding, errors="replace"))
+            # Download the file.
+            download_file(url, self.output, self.track +
+                          ".mp3", verbose=True)
 
         print('\nFinished downloading all tracks')
 
-        # Download the album art if the supplied URL was an album URL.
-        if bandcamp_isAlbum:
-            try:
-                print('\nDownloading album art...')
+        print('\nDownloading artwork...')
 
-                # Make an image request to the art URL we extracted at the very
-                # start.
-                image_request = requests.get(bandcamp_art_url, stream=True)
+        # Make sure that the album art actually exists. Write it to a file.
+        filename = ""
 
-                # Make sure that the album art actually exists. Write it to a
-                # file then.
-                if image_request.status_code == 200:
-                    with open(outputfolder + "/cover" + bandcamp_art_url[-4:], 'wb') as f:
-                        for chunk in image_request.iter_content(1024):
-                            f.write(chunk)
+        if self.is_album:
+            filename = "cover"
 
-            # Remove the corrupt file if the user interrupted the download
-            # process.
-            except (KeyboardInterrupt, SystemExit):
-                print('\n\nDownload aborted - removing download remnants')
-                os.remove(outputfolder + "/cover" + bandcamp_art_url[-4:])
+        else:
+            filename = self.track
 
-                sys.exit(2)
-            try:
-                print('Saved album art to %s%s%s' %
-                      (outputfolder, "/cover", bandcamp_art_url[-4:]))
+        s = download_file(self.art_url, self.output,
+                          filename + self.art_url[-4:])
 
-            except UnicodeEncodeError:
-                try:
-                    print('Saved album art to %s%s%s' % (outputfolder.encode(
-                        sys.stdout.encoding, errors="replace").decode(), "/cover", bandcamp_art_url[-4:]))
+        if s == 1:
+            safe_print('Saved album art to {}/{}{}'.format(
+                self.output, filename, self.art_url[-4:]))
 
-                except UnicodeDecodeError:
-                    print('Saved album art to %s%s%s' % (outputfolder.encode(
-                        sys.stdout.encoding, errors="replace"), "/cover", bandcamp_art_url[-4:]))
+        elif s == 2:
+            print('Artwork already found.')
+
+        else:
+            print('Failed to download the artwork. Error code {}'.format(s))
+
+
+# Check that this file's main function is not being called from another file.
+if __name__ == "__main__":
+    try:
+        url = sys.argv[1]
+
+    except(IndexError):
+        print('\nMissing required URL argument')
+        sys.exit(2)
+
+    try:
+        out = sys.argv[2]
+
+    except(IndexError):
+        out = ""
+
+    c = Campdown(url, out)
+
+    try:
+        c.run()
 
     except (KeyboardInterrupt):
-        print("Double interrupt caught - exiting program...")
+        print("Exiting program...")
         sys.exit(2)
