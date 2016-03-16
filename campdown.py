@@ -6,6 +6,8 @@ import math
 import re
 import json
 import html
+import platform  # TODO: Add platform detection to path validation.
+
 import requests
 
 
@@ -40,6 +42,7 @@ def safe_path(string):
     Returns:
         new path string without illegal characters.
     '''
+    # TODO Add platform detection as previously mentioned.
     return string.replace('/', '&').replace('\\', '').replace('"', '')
 
 
@@ -55,53 +58,81 @@ def string_between(string, start, end):
     Returns:
         new string between start and end.
     '''
-    return string.split(start, 1)[1].split(end)[0]
+    return str(string).split(str(start), 1)[1].split(str(end))[0]
 
 
-def format_information(track_title, track_artist, track_album="", track_number=0):
+def format_information(title, artist, album="", index=0):
     '''
     Takes in track information and returns everything as a formatted String.
 
     Args:
-        track_title (str): track title string
-        track_artist (str): track artist string
-        track_album (str): optional track album string
-        track_number (str): optional track number string
+        title (str): track title string
+        artist (str): track artist string
+        album (str): optional track album string
+        index (str): optional track number string
 
     Returns:
         A formatted string of all track information.
     '''
 
-    if " - " in track_title:
-        split_title = str(track_title).split(" - ", 1)
+    if " - " in title:
+        split_title = str(title).split(" - ", 1)
 
-        if track_album:
-            if track_number:
-                return "{} - {} - {} {}".format(split_title[0], track_album, track_number, split_title[1])
+        if album:
+            if index:
+                return "{} - {} - {} {}".format(split_title[0], album, index, split_title[1])
 
             else:
-                return "{} - {} - {}".format(split_title[0], track_album, split_title[1])
+                return "{} - {} - {}".format(split_title[0], album, split_title[1])
 
         else:
-            if track_number:
-                return "{} - {} {}".format(split_title[0], track_number, split_title[1])
+            if index:
+                return "{} - {} {}".format(split_title[0], index, split_title[1])
 
             else:
                 return "{} - {}".format(split_title[0], split_title[1])
     else:
-        if track_album:
-            if track_number:
-                return "{} - {} - {} {}".format(track_artist, track_album, track_number, track_title)
+        if album:
+            if index:
+                return "{} - {} - {} {}".format(artist, album, index, title)
 
             else:
-                return "{} - {} - {}".format(track_artist, track_album, track_title)
+                return "{} - {} - {}".format(artist, album, title)
 
         else:
-            if track_number:
-                return "{} - {} {}".format(track_artist, track_number, track_title)
+            if index:
+                return "{} - {} {}".format(artist, index, title)
 
             else:
-                return "{} - {}".format(track_artist, track_title)
+                return "{} - {}".format(artist, title)
+
+
+def valid_url(url):
+    # TODO: Further URL validation.
+    if "http://" not in url and "https://" not in url:
+        return False
+
+    return True
+
+
+def get_page_type(content):
+    # Identify a Bandcamp page and it's type by analysing request content.
+    # Check if the content contains a track list.
+    if "bandcamp.com" in content:
+        if "Digital Track" in content:
+            return "track"
+
+        elif "Digital Album" and "track_list" in content:
+            return "album"
+
+        elif 'id="discography"' not in content:
+            return "discography"
+
+        else:
+            return "unknown"
+
+    else:
+        return "none"
 
 
 def download_file(url, output_folder, output_name, force=False, verbose=False):
@@ -183,12 +214,220 @@ def download_file(url, output_folder, output_name, force=False, verbose=False):
     return 1
 
 
-class Campdown:
+class Track:
+
+    def __init__(self, url, request=None, title=None, artist=None, album=None, index=None):
+        # Requests and other information can optionally be filled to remove unneccessary
+        # operations such as making a request to a URL that has already been fetched
+        # by another component.
+
+        self.url = url  # URL to download files from.
+
+        # Information about the given track. These are assigned in the prepare
+        # function which needs to be called before anything else can be done.
+        self.title = title
+        self.artist = artist
+        self.album = album
+        self.index = index
+
+        # Information about the track fetched from Bandcamp in JSON format.
+        self.info = None
+
+        self.art_url = None
+        self.mp3_url = None
+
+        # Store the track request object for later reference.
+        self.request = request
+        self.content = None
+
+    def fetch(self):
+        if not valid_url(self.url):  # Validate the URL
+            print("The supplied URL is not a valid URL.")
+            return False
+
+        if not self.request:
+            # Make a request to the track URL.
+            self.request = requests.get(self.url)
+
+        if self.request.status_code != 200:
+            print("An error occurred while trying to access your supplied URL. Status code: {}".format(
+                self.request.status_code))
+
+            self.request = None
+
+            return False
+
+        # Get the content from the request and decode it correctly.
+        self.content = self.request.content.decode('utf-8')
+
+        # Get the title of the album.
+        if not self.title:
+            self.title = html.unescape(re.sub(
+                '[:*?<>|]', '', string_between(self.content, '<meta name="Description" content=', " by ")[2:]))
+
+        # Get the main artist of the album.
+        if not self.artist:
+            try:
+                self.artist = html.unescape(string_between(
+                    string_between(self.content, "var BandData = {", "}"), 'name : "', '",'))
+
+            except IndexError:
+                try:
+                    self.artist = html.unescape(string_between(
+                        string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
+
+                except:
+                    print("\nFailed to fetch the band/artist title")
+
+        # Add the title of the album this single track might belong to, to
+        # the information that will make up the output filename.
+        if not self.album:
+            try:
+                self.album = html.unescape(string_between(
+                    self.content, '<span itemprop="name">', "</span>"))
+
+            except IndexError:
+                self.album = ""
+
+        # Fetch the track art URL.
+        self.art_url = string_between(
+            self.content, '<a class="popupImage" href="', '">')
+
+        # Get the Bandcamp track MP3 URL and save it.
+        raw_info = "{" + string_between(
+            self.content, "trackinfo: [{", "}]") + "}"
+
+        info = json.loads(raw_info)
+
+        self.mp3_url = info["file"]["mp3-128"]
+
+
+class Album:
+
+    def __init__(self, url, request=None, title=None, artist=None):
+        # Requests and other information can optionally be filled to remove unneccessary
+        # operations such as making a request to a URL that has already been fetched
+        # by another component.
+
+        self.url = url  # URL to download files from.
+
+        # Basic information used when writing tracks.
+        self.title = title
+        self.artist = artist
+
+        # Extra URLs to make further requests easier.
+        self.base_url = None
+        self.art_url = None
+
+        self.queue = []  # Queue array to store album tracks in.
+
+        # Store the album request object for later reference.
+        self.request = request
+        self.content = None
+
+    def fetch(self):
+        if not valid_url(self.url):  # Validate the URL
+            print("The supplied URL is not a valid URL.")
+            return False
+
+        if not self.request:
+            # Make a request to the album URL.
+            self.request = request.get(self.url)
+
+        if self.request.status_code != 200:
+            print("An error occurred while trying to access your supplied URL. Status code: {}".format(
+                self.request.status_code))
+
+            self.request = None
+
+            return False
+
+        # Get the content from the request and decode it correctly.
+        self.content = self.request.content.decode('utf-8')
+
+        # Get the title of the album.
+        if not self.title:
+            self.title = html.unescape(re.sub(
+                '[:*?<>|]', '', string_between(self.content, '<meta name="Description" content=', " by ")[2:]))
+
+        # Get the main artist of the album.
+        # Find the artist title of the supplied Bandcamp page.
+        if not self.artist:
+            try:
+                self.artist = html.unescape(string_between(
+                    string_between(self.content, "var BandData = {", "}"), 'name : "', '",'))
+
+            except IndexError:
+                try:
+                    self.artist = html.unescape(string_between(
+                        string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
+
+                except:
+                    print("\nFailed to fetch the band/artist title")
+
+        # Retrieve the base page URL.
+        self.base_url = "{}//{}".format(str(self.url).split("/")[
+            0], str(self.url).split("/")[2])
+
+        # Fetch the album URL.
+        self.art_url = string_between(
+            self.content, '<a class="popupImage" href="', '">')
+
+        # Split the string and convert it into an array.
+        tracks = self.content.split(
+            '<table class="track_list track_table" id="track_table">', 1)[1].split('</table>')[0].split("<tr")
+
+        # Iterate over the tracks found and begin traversing the given
+        # track's title information and insert the track data in the queue.
+        print('\nListing found tracks')
+
+        track_index = 0
+
+        for i, track in enumerate(tracks):
+            position = track.find('<a href="/track')
+
+            if position != -1:
+                # Find the track's name.
+                position = position + len('<a href="/track')
+                track_name = ""
+
+                while track[position] != '"':
+                    track_name = track_name + track[position]
+                    position = position + 1
+
+                if track_name != "":
+                    track_index += 1
+
+                    # Print the prepared track.
+                    safe_print(self.base_url + "/track" + track_name)
+
+                    # Create a new track instance with the given URL.
+                    track = Track(self.base_url + "/track" + track_name,
+                                  album=self.title, index=track_index)
+
+                    # Retrive track data and store it in the instance.
+                    track.fetch()
+
+                    # Insert the acquired data into the queue.
+                    self.queue.insert(i, track)
+
+        return True
+
+
+class Discography:
+
+    def __init__(self):
+        # TODO: Handle this type of page.
+        pass
+
+
+class Downloader:
     '''
-    Main class of the Campdown Bandcamp downloader.
+    Main class of Campdown. This class handles all other Campdown functions and
+    executes them depending on the information it is given during initilzation.
     '''
 
-    def __init__(self, url, out):
+    def __init__(self, url, out=None):
         '''
         Init method of Campdown.
 
@@ -196,24 +435,17 @@ class Campdown:
             url (str): Bandcamp URL to analyse and download from.
             out (str): relative or absolute path to write to.
         '''
-        self.artist = ""
-        self.album = ""
-        self.track = ""
-
-        self.is_album = False
-        self.is_mainpage = False
-
-        self.queue = []
 
         self.url = url
         self.output = out
 
+        # Downloader relevant data.
+        self.request = None
+        self.content = None
+
+        # Get the script path in case no output path is specified.
         self.script_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), '')
-
-        if not "http://" in self.url and not "https://" in self.url:
-            print('\n%s is not a valid URL' % self.url)
-            sys.exit(2)
 
         if self.output:
             # Make sure that the output folder has the right path syntax
@@ -227,185 +459,132 @@ class Campdown:
             # If no path is specified use the absolute path of the main file.
             self.output = self.script_path
 
+    def download_track(self, url="", output="", request=None, preplace=None, standalone=False):
+        url = url or self.url
+        output = output or self.output
+
+        if not preplace:
+            track = Track(url, request)
+            track.fetch()
+
+        else:
+            track = preplace
+
+        title = format_information(
+            track.title,
+            track.artist,
+            track.album,
+            track.index
+        )
+
+        try:
+            # Retrieve the MP3 file URL from the queue-item.
+            url = track.mp3_url
+
+            # Add in http for those times when Bandcamp is rude.
+            if url[:2] == "//":
+                url = "http:" + url
+
+        except TypeError:
+            safe_print(
+                '\n {} is not openly available - skipping track'.format(title))
+
+        if standalone:
+            safe_print('\nWriting file to {}'.format(output))
+
+        # Download the file.
+        download_file(url, output, title + ".mp3", verbose=True)
+
+        if standalone:
+            s = download_file(track.art_url, output,
+                              "cover" + track.art_url[-4:])
+
+            if s == 1:
+                safe_print('\nSaved album art to {}/{}{}'.format(
+                    self.output, title, track.art_url[-4:]))
+
+            elif s == 2:
+                print('\nArtwork already found.')
+
+            else:
+                print('\nFailed to download the artwork. Error code {}'.format(s))
+
+    def download_album(self, url="", output="", request=None, preplace=None, standalone=False):
+        url = url or self.url
+        output = output or self.output
+
+        if not preplace:
+            album = Album(url, request)
+            album.fetch()
+
+        else:
+            album = preplace
+
+        album_output = os.path.join(
+            output, album.artist + " - " + album.title, "")
+
+        # Create a new album folder if it doesn't already exist.
+        if not os.path.exists(album_output):
+            os.makedirs(album_output)
+
+        if standalone:
+            safe_print('\nWriting album files to {}'.format(album_output))
+
+        for i in range(0, len(album.queue)):
+            self.download_track(
+                album.queue[i].url, output=album_output, preplace=album.queue[i])
+
+        if standalone:
+            s = download_file(album.art_url, album_output,
+                              "cover" + album.art_url[-4:])
+
+            if s == 1:
+                safe_print('\nSaved album art to {}{}{}'.format(
+                    album_output, "cover", album.art_url[-4:]))
+
+            elif s == 2:
+                print('\nArtwork already found.')
+
+            else:
+                print('\nFailed to download the artwork. Error code {}'.format(s))
+
     def run(self):
         '''
         Begins downloading the content from the prepared settings.
         '''
 
-        # Get the content from the supplied Bandcamp URL.
-        main_request = requests.get(self.url)
-        main_content = main_request.content.decode('utf-8')
+        if not valid_url(self.url):
+            print("The supplied URL is not a valid URL.")
+            return False
 
-        if main_request.status_code != 200:
+        # Get the content from the supplied Bandcamp URL.
+        self.request = requests.get(self.url)
+        self.content = self.request.content.decode('utf-8')
+
+        if self.request.status_code != 200:
             print("An error occurred while trying to access your supplied URL. Status code: {}".format(
-                main_request.status_code))
+                self.request.status_code))
 
             return
 
-        # Retrieve the base page URL, fetch the album art URL and create
-        # variables which will be used later on.
-        self.base_url = "{}//{}".format(str(self.url).split("/")[
-            0], str(self.url).split("/")[2])
+        # Get the type of the page supplied to the downloader.
+        pagetype = get_page_type(self.content)
 
-        self.art_url = string_between(
-            main_content, '<a class="popupImage" href="', '">')
+        # TODO: Add page and discography downloads.
 
-        # Find the artist name of the supplied Bandcamp page.
-        try:
-            self.artist = html.unescape(string_between(
-                string_between(str(main_content), "var BandData = {", "}"), 'name : "', '",'))
+        if pagetype == "track":
+            self.download_track(request=self.request, standalone=True)
+            print("\nFinished track download.")
 
-        except IndexError:
-            try:
-                self.artist = html.unescape(string_between(
-                    string_between(str(main_content), "var BandData = {", "}"), 'name: "', '",'))
+        elif pagetype == "album":
+            self.download_album(request=self.request, standalone=True)
+            print("\nFinished album download.")
 
-            except:
-                print("\nFailed to fetch the band/artist title")
-
-        # We check if the page has a track list or not. If not, we only fetch
-        # the track info for the one track on the given Bandcamp page.
-        if not "track_list" in str(main_content):
-            # Extract the unformatted JSON array from the request's content.
-            # Convert it to an actual Python array afterwards.
-            raw_info = "{" + \
-                string_between(str(main_content),
-                               "trackinfo: [{", "}]") + "}"
-
-            track_info = json.loads(raw_info)
-
-            # Insert the track data into the queue and inform the downloader
-            # that it's not an album.
-            self.queue.insert(1, track_info)
-
-            # Add the name of the album this single track might belong to, to
-            # the information that will make up the output filename.
-            try:
-                self.album = html.unescape(string_between(
-                    main_content, '<span itemprop="name">', "</span>"))
-
-            except IndexError:
-                self.album = ""
+        elif pagetype == "discography":
+            print("\nDiscography page detected. Downloading this is not in place yet.")
 
         else:
-            # Since the supplied URL was detected to be an album URL, we
-            # extract the name of the album.
-            self.album = html.unescape(re.sub(
-                '[:*?<>|]', '', string_between(str(main_content), '<meta name="Description" content=', " by ")[2:]))
-
-            # Flag output to write to a folder since we have multiple files.
-            is_album = True
-
-            # Create a new album folder if it doesn't already exist.
-            if not os.path.exists(os.path.join(self.output, self.artist + " - " + self.album)):
-                safe_print('\nCreated album folder in {}{} - {}{}'.format(
-                    self.output, self.artist, self.album, "/"))
-
-                os.makedirs(self.output + "/" + self.artist +
-                            " - " + self.album + "/")
-
-            # Extract the string of tracks from the request's response content.
-            # Convert the individual titles to single entries for use in an
-            # array.
-            album_tracktable = str(main_content).split(
-                '<table class="track_list track_table" id="track_table">', 1)[1].split('</table>')[0]
-
-            album_tracks = album_tracktable.split("<tr")
-
-            # Iterate over the tracks found and begin traversing the given
-            # track's title information.
-            print('\nListing found tracks')
-
-            for i, track in enumerate(album_tracks):
-                position = track.find('<a href="/track')
-
-                if position != -1:
-                    # Find the track's name.
-                    position = position + len('<a href="/track')
-                    track_name = ""
-
-                    while track[position] != '"':
-                        track_name = track_name + track[position]
-                        position = position + 1
-
-                    if track_name != "":
-                        print(self.base_url + "/track" + track_name)
-
-                        # Make a single request to the track's own URL and
-                        # extract the track info from there.
-                        track_request = requests.get(
-                            self.base_url + "/track" + track_name).content.decode('utf-8')
-
-                        raw_info = "{" + string_between(
-                            str(track_request), "trackinfo: [{", "}]") + "}"
-
-                        track_info = json.loads(raw_info)
-
-                        # Insert the acquired data into the queue.
-                        self.queue.insert(i, track_info)
-
-        if self.is_album:
-            # Since we know that the downloader is fetching an album we might
-            # as well sum up the output string for easier encoding.
-            self.output = self.output + self.artist + " - " + self.album
-
-        safe_print(
-            '\nWriting all output files to {}'.format(self.output))
-
-        # Store the track index in case it's an album queue.
-        track_index = 0
-
-        # Start the process of downloading files from the queue.
-        for i in range(0, len(self.queue)):
-
-            if self.is_album:
-                track_index += 1
-
-            # Get the title of the current queue-item.
-            self.track = format_information(
-                self.queue[i]["title"].replace('"', ''), self.artist, self.album, track_index)
-
-            try:
-                # Retrieve the MP3 file URL from the queue-item.
-                url = self.queue[i]["file"]["mp3-128"]
-
-                # Add in http for those times when Bandcamp is rude.
-                if url[:2] == "//":
-                    url = "http:" + url
-
-            except TypeError:
-                safe_print(
-                    '\n {} is not openly available - skipping track'.format(title))
-
-            # Download the file.
-            download_file(url, self.output, self.track +
-                          ".mp3", verbose=True)
-
-        print('\nFinished downloading all tracks')
-
-        print('\nDownloading artwork...')
-
-        # Make sure that the album art actually exists. Write it to a file.
-        filename = ""
-
-        if self.is_album:
-            filename = "cover"
-
-        else:
-            filename = self.track
-
-        s = download_file(self.art_url, self.output,
-                          filename + self.art_url[-4:])
-
-        if s == 1:
-            safe_print('Saved album art to {}/{}{}'.format(
-                self.output, filename, self.art_url[-4:]))
-
-        elif s == 2:
-            print('Artwork already found.')
-
-        else:
-            print('Failed to download the artwork. Error code {}'.format(s))
+            print("Invalid page type. Exiting.")
 
 
 # Check that this file's main function is not being called from another file.
@@ -423,10 +602,10 @@ if __name__ == "__main__":
     except(IndexError):
         out = ""
 
-    c = Campdown(url, out)
+    downloader = Downloader(url, out)
 
     try:
-        c.run()
+        downloader.run()
 
     except (KeyboardInterrupt):
         print("Exiting program...")
