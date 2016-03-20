@@ -297,6 +297,9 @@ class Track:
                 self.content, '<span itemprop="byArtist">', '/a>'),
                 ">", "<"))
 
+            if self.artist == "Various Artists":
+                self.artist = ""
+
             if not self.artist:
                 html.unescape(string_between(
                     string_between(self.content, "var BandData = {", "}"), 'name : "', '",'))
@@ -451,7 +454,7 @@ class Album:
             self.artist = html.unescape(string_between(string_between(
                 self.content, "var BandData = {", "}"), 'name : "', '",'))
 
-            if not self.artist:
+            if self.artist == "Various Artists" or not self.artist:
                 self.artist = html.unescape(string_between(
                     string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
 
