@@ -6,7 +6,7 @@ import math
 import re
 import json
 import html
-import platform  # TODO: Add platform detection to path validation.
+import platform
 
 import requests
 
@@ -58,7 +58,11 @@ def string_between(string, start, end):
     Returns:
         new string between start and end.
     '''
-    return str(string).split(str(start), 1)[1].split(str(end))[0]
+    try:
+        return str(string).split(str(start), 1)[1].split(str(end))[0]
+
+    except IndexError:
+        return ""
 
 
 def format_information(title, artist, album="", index=0):
@@ -212,25 +216,29 @@ def download_file(url, output, name, force=False, verbose=False, silent=False):
                         50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
                     sys.stdout.flush()
 
+    print()  # Print a newline to fix formatting after direct stdout.
+
     return 1
 
 
 class Track:
 
-    def __init__(self, url, output, request=None, title=None, artist=None, album=None, index=None, verbose=False, silent=False, art_enabled=False):
+    def __init__(self, url, output, request=None, album=None, index=None, verbose=False, silent=False, art_enabled=False):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
 
         self.url = url  # URL to download files from.
+        self.output = output  # Output directory for the track download.
 
-        # Output directory to create the new album dir in.
-        self.output = output
-
-        # Information about the given track. These are assigned in the prepare
+        # Information about the given track. These are assigned in the fetch
         # function which needs to be called before anything else can be done.
-        self.title = title
-        self.artist = artist
+        self.title = None
+        self.artist = None
+
+        # These values should be set by passing arguments to the constructor.
+        # Album is used to set a fixed album name and to keep name consistency.
+        # Index is used to number the track in the filename.
         self.album = album
         self.index = index
 
@@ -251,6 +259,7 @@ class Track:
         self.silent = silent
 
         # Set if the cover should be downloaded as well.
+        # This is disabled for tracks by default.
         self.art_enabled = art_enabled
 
     def fetch(self):
@@ -284,17 +293,20 @@ class Track:
 
         # Get the main artist of the album.
         if not self.artist:
-            try:
-                self.artist = html.unescape(string_between(
+            self.artist = html.unescape(string_between(string_between(
+                self.content, '<span itemprop="byArtist">', '/a>'),
+                ">", "<"))
+
+            if not self.artist:
+                html.unescape(string_between(
                     string_between(self.content, "var BandData = {", "}"), 'name : "', '",'))
 
-            except IndexError:
-                try:
-                    self.artist = html.unescape(string_between(
-                        string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
+            if not self.artist:
+                self.artist = html.unescape(string_between(
+                    string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
 
-                except:
-                    print("\nFailed to fetch the band/artist title")
+            if not self.artist:
+                print("\nFailed to fetch the band/artist title")
 
         # Add the title of the album this single track might belong to, to
         # the information that will make up the output filename.
@@ -333,7 +345,7 @@ class Track:
         return True
 
     def download(self):
-        if self.verbose:
+        if not self.album:
             safe_print('\nWriting file to {}'.format(self.output))
 
         # Clean up the main title.
@@ -354,7 +366,7 @@ class Track:
 
             if self.verbose:
                 if s == 1:
-                    safe_print('\nSaved album art to {}/{}{}'.format(
+                    safe_print('\nSaved album art to {}{}{}'.format(
                         self.output, clean_title, self.art_url[-4:]))
 
                 elif s == 2:
@@ -366,19 +378,17 @@ class Track:
 
 class Album:
 
-    def __init__(self, url, output, request=None, title=None, artist=None, verbose=False, silent=False, art_enabled=False):
+    def __init__(self, url, output, request=None, verbose=False, silent=False, art_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
 
         self.url = url  # URL to download files from.
-
-        # Output directory to create the new album dir in.
-        self.output = output
+        self.output = output  # Output directory for downloads.
 
         # Basic information used when writing tracks.
-        self.title = title
-        self.artist = artist
+        self.title = None
+        self.artist = None
 
         # Extra URLs to make further requests easier.
         self.base_url = None
@@ -397,6 +407,7 @@ class Album:
         self.silent = silent
 
         # Set if the cover should be downloaded as well.
+        # This is active for albums by default.
         self.art_enabled = art_enabled
 
     def fetch(self):
@@ -408,7 +419,7 @@ class Album:
 
         if not self.request:
             # Make a request to the album URL.
-            self.request = request.get(self.url)
+            self.request = requests.get(self.url)
 
         if self.request.status_code != 200:
             if not self.silent:
@@ -431,24 +442,22 @@ class Album:
 
         # Get the title of the album.
         if not self.title:
-            self.title = html.unescape(re.sub(
-                '[:*?<>|]', '', string_between(self.content, '<meta name="Description" content=', " by ")[2:]))
+            self.title = html.unescape(string_between(
+                self.content, '<h2 class="trackTitle" itemprop="name">', "</h2>")).strip()
 
         # Get the main artist of the album.
         # Find the artist title of the supplied Bandcamp page.
         if not self.artist:
-            try:
+            self.artist = html.unescape(string_between(string_between(
+                self.content, "var BandData = {", "}"), 'name : "', '",'))
+
+            if not self.artist:
                 self.artist = html.unescape(string_between(
-                    string_between(self.content, "var BandData = {", "}"), 'name : "', '",'))
+                    string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
 
-            except IndexError:
-                try:
-                    self.artist = html.unescape(string_between(
-                        string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
-
-                except:
-                    if self.verbose:
-                        print("\nFailed to fetch the band/artist title")
+            if not self.artist:
+                if not self.silent:
+                    print("\nFailed to fetch the band/artist title")
 
         # Setup the correct output directory name.
         self.output = os.path.join(
@@ -466,6 +475,9 @@ class Album:
         self.art_url = string_between(
             self.content, '<a class="popupImage" href="', '">')
 
+        return True
+
+    def fetch_tracks(self):
         # Split the string and convert it into an array.
         tracks = self.content.split(
             '<table class="track_list track_table" id="track_table">', 1)[1].split('</table>')[0].split("<tr")
@@ -478,11 +490,11 @@ class Album:
         track_index = 0
 
         for i, track in enumerate(tracks):
-            position = track.find('<a href="/track')
+            position = track.find('<a href="/track/')
 
             if position != -1:
                 # Find the track's name.
-                position = position + len('<a href="/track')
+                position = position + 16
                 track_name = ""
 
                 while track[position] != '"':
@@ -494,10 +506,10 @@ class Album:
 
                     # Print the prepared track.
                     if self.verbose:
-                        safe_print(self.base_url + "/track" + track_name)
+                        safe_print(self.base_url + "/track/" + track_name)
 
                     # Create a new track instance with the given URL.
-                    track = Track(self.base_url + "/track" + track_name, self.output,
+                    track = Track(self.base_url + "/track/" + track_name, self.output,
                                   album=self.title, index=track_index, verbose=self.verbose)
 
                     # Retrive track data and store it in the instance.
@@ -506,11 +518,9 @@ class Album:
                         # Insert the acquired data into the queue.
                         self.queue.insert(i, track)
 
-        return True
-
     def download(self):
         if self.verbose:
-            safe_print('\nWriting album files to {}'.format(self.output))
+            safe_print('\nWriting album to {}'.format(self.output))
 
         for i in range(0, len(self.queue)):
             self.queue[i].download()
@@ -533,21 +543,34 @@ class Album:
 
 class Discography:
 
-    def __init__(self, url, output, request=None, title=None, artist=None):
+    def __init__(self, url, output, request=None, verbose=False, silent=False, art_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
 
         self.url = url  # URL to get information from.
+        self.output = output
 
         # Basic information used when writing tracks.
-        self.artist = artist
+        self.artist = None
 
         self.queue = []  # Queue array to store album tracks in.
 
         # Store the album request object for later reference.
         self.request = request
         self.content = None
+
+        # Base Bandcamp URL.
+        self.base_url = None
+
+        # Set if status messages should be printed to the console.
+        self.verbose = verbose
+
+        # Set if error messages should be silenced.
+        self.silent = silent
+
+        # Set if the cover should be downloaded as well.
+        self.art_enabled = art_enabled
 
     def fetch(self):
         if not valid_url(self.url):  # Validate the URL
@@ -569,12 +592,96 @@ class Discography:
         # Get the content from the request and decode it correctly.
         self.content = self.request.content.decode('utf-8')
 
-        # Verify that this is an album page.
+        # Verify that this is an discography page.
         if not page_type(self.content) == "discography":
             print("The supplied URL is not a discography page.")
 
+        # Retrieve the base page URL.
+        self.base_url = "{}//{}".format(str(self.url).split("/")[
+            0], str(self.url).split("/")[2])
+
+        self.artist = html.unescape(string_between(
+            self.content, '<span class="title">', '</span>'))
+
+        if self.artist:
+            self.output = os.path.join(self.output, self.artist, "")
+
+            # Create a new artist folder if it doesn't already exist.
+            if not os.path.exists(self.output):
+                os.makedirs(self.output)
+
+            safe_print(
+                '\nSet "{}" as the working directory.'.format(self.output))
+
+        tracks = [i for i in range(
+            len(self.content)) if self.content.startswith('<a href="/track/', i)]
+
+        albums = [i for i in range(
+            len(self.content)) if self.content.startswith('<a href="/album/', i)]
+
+        if self.verbose:
+            print('\nListing found discography content.')
+
+        for i, position in enumerate(albums):
+            position += 16  # Add the length of the search string.
+
+            album_name = ""
+
+            while self.content[position] != '"':
+                album_name += self.content[position]
+                position += 1
+
+            if album_name != "":
+                # Print the prepared track.
+                if self.verbose:
+                    safe_print(self.base_url + "/album/" + album_name)
+
+                # Create a new track instance with the given URL.
+                album = Album(self.base_url + "/album/" +
+                              album_name, self.output, verbose=self.verbose)
+
+                self.queue.insert(len(self.queue), album)
+
+        for i, position in enumerate(tracks):
+            position += 16  # Add the length of the search string.
+
+            track_name = ""
+
+            while self.content[position] != '"':
+                track_name += self.content[position]
+                position += 1
+
+            if track_name != "":
+                # Print the prepared track.
+                if self.verbose:
+                    safe_print(self.base_url + "/track/" + track_name)
+
+                # Create a new track instance with the given URL.
+                track = Track(self.base_url + "/track/" +
+                              track_name, self.output, verbose=self.verbose, art_enabled=True)
+
+                self.queue.insert(len(self.queue), track)
+
+        if self.verbose:
+            print('\nBeginning downloads. Albums additionally require fetching tracks.')
+
     def download(self):
-        pass
+        for i in range(0, len(self.queue)):
+            if type(self.queue[i]) is Track:
+                self.queue[i].fetch()
+
+                safe_print(
+                    '\nDownloading track "{}"'.format(self.queue[i].title))
+
+                self.queue[i].download()
+
+            elif type(self.queue[i]) is Album:
+                self.queue[i].fetch()
+                safe_print(
+                    '\nDownloading album "{}"'.format(self.queue[i].title))
+
+                self.queue[i].fetch_tracks()
+                self.queue[i].download()
 
 
 class Downloader:
@@ -640,25 +747,38 @@ class Downloader:
         # TODO: Add page and discography downloads.
 
         if pagetype == "track":
+            print("\nDetected Bandcamp track.")
+
             track = Track(self.url, self.output,
                           request=self.request, verbose=True, art_enabled=True)
 
             track.fetch()
             track.download()
 
-            print("\nFinished track download.")
+            print("\nFinished track download. Downloader complete.")
 
         elif pagetype == "album":
+            print("\nDetected Bandcamp album.")
+
             album = Album(self.url, self.output,
                           request=self.request, verbose=True, art_enabled=True)
 
             album.fetch()
+            album.fetch_tracks()
             album.download()
 
-            print("\nFinished album download.")
+            print("\nFinished album download. Downloader complete.")
 
         elif pagetype == "discography":
-            print("\nDiscography page detected. Downloading this is not in place yet.")
+            print("\nDetected Bandcamp discography page.")
+
+            page = Discography(
+                self.url, self.output, request=self.request, verbose=True, art_enabled=True)
+
+            page.fetch()
+            page.download()
+
+            print("\nFinished discography download. Downloader complete.")
 
         else:
             print("Invalid page type. Exiting.")
@@ -685,5 +805,5 @@ if __name__ == "__main__":
         downloader.run()
 
     except (KeyboardInterrupt):
-        print("Exiting program...")
+        print("\nInterrupt caught. Exiting program...")
         sys.exit(2)
