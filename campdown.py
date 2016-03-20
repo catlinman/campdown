@@ -11,6 +11,21 @@ import platform
 import requests
 
 
+def strike(string):
+    '''
+    Make a string strikethrough but assure that it can be printed.
+
+    Args:
+        string (str): string to apply strikethrough to.
+    '''
+
+    if platform.system() is not "Windows":
+        return '\u0336'.join(string) + '\u0336'
+
+    else:
+        return "X " + string
+
+
 def safe_print(string):
     '''
     Print to the console while avoiding encoding errors
@@ -32,9 +47,9 @@ def safe_print(string):
                 sys.stdout.encoding, errors="replace"))
 
 
-def safe_path(string):
+def safe_filename(string):
     '''
-    Convert a path string into one without illegal characters
+    Convert a string into one without illegal characters for the given filesystem.
 
     Args:
         string (str): the path to remove illegal characters from.
@@ -42,8 +57,13 @@ def safe_path(string):
     Returns:
         new path string without illegal characters.
     '''
-    # TODO Add platform detection as previously mentioned.
-    return string.replace('/', '&').replace('\\', '').replace('"', '')
+
+    string = string.replace('/', '&').replace('\\', '')
+
+    if platform.system() is "Windows":
+        string = re.sub('[:*?<>|]', "", string)
+
+    return string
 
 
 def string_between(string, start, end):
@@ -192,7 +212,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False):
                 return 2
 
     # Open a file stream which will be used to save the output string
-    with open(output + "/" + re.sub('[\\/:*?<>|]', "", name), "wb") as f:
+    with open(os.path.join(output, safe_filename(name)), "wb") as f:
         # Storage variables used while evaluating the already downloaded data.
         dl = 0
         total_length = int(total_length)
@@ -331,21 +351,30 @@ class Track:
 
         info = json.loads(raw_info)
 
-        self.mp3_url = info["file"]["mp3-128"]
+        if info["file"]:
+            self.mp3_url = info["file"]["mp3-128"]
 
-        try:
-            # Add in http for those times when Bandcamp is rude.
-            if self.mp3_url[:2] == "//":
-                self.mp3_url = "http:" + self.mp3_url
+            try:
+                # Add in http for those times when Bandcamp is rude.
+                if self.mp3_url[:2] == "//":
+                    self.mp3_url = "http:" + self.mp3_url
 
-        except TypeError:
-            if not self.silent:
-                safe_print(
-                    '\n {} is not openly available.'.format(self.title))
+            except TypeError:
+                if self.verbose:
+                    safe_print(strike(self.url))
 
-                return False
+                    return False
 
-        return True
+            if self.verbose:
+                safe_print(self.url)
+
+            return True
+
+        else:
+            if self.verbose:
+                safe_print(strike(self.url))
+
+            return False
 
     def download(self):
         if not self.album:
@@ -369,7 +398,7 @@ class Track:
 
             if self.verbose:
                 if s == 1:
-                    safe_print('\nSaved album art to {}{}{}'.format(
+                    safe_print('\nSaved track art to {}{}{}'.format(
                         self.output, clean_title, self.art_url[-4:]))
 
                 elif s == 2:
@@ -510,10 +539,6 @@ class Album:
                 continue
 
             track_index += 1
-
-            # Print the prepared track.
-            if self.verbose:
-                safe_print(self.base_url + "/track/" + track_name)
 
             # Create a new track instance with the given URL.
             track = Track(self.base_url + "/track/" + track_name, self.output,
