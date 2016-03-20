@@ -115,27 +115,24 @@ def valid_url(url):
     return True
 
 
-def get_page_type(content):
+def page_type(content):
     # Identify a Bandcamp page and it's type by analysing request content.
     # Check if the content contains a track list.
     if "bandcamp.com" in content:
-        if "Digital Track" in content:
-            return "track"
-
-        elif "Digital Album" and "track_list" in content:
+        if "Digital Album" and "track_list" in content:
             return "album"
 
         elif 'id="discography"' not in content:
             return "discography"
 
         else:
-            return "unknown"
+            return "track"
 
     else:
         return "none"
 
 
-def download_file(url, output_folder, output_name, force=False, verbose=False):
+def download_file(url, output, name, force=False, verbose=False, silent=False):
     '''
     Downloads and saves a file from the supplied URL and prints progress
     to the console. Uses ranged requests to make downloads from Bandcamp faster.
@@ -144,34 +141,42 @@ def download_file(url, output_folder, output_name, force=False, verbose=False):
 
     Args:
         url (str): URL to make the request to.
-        output_folder (str): absolute folder path to write to.
-        output_name (str): filename with extension to write the content to.
+        output (str): absolute folder path to write to.
+        name (str): filename with extension to write the content to.
         force (bool): ignores checking if the file already exists.
         verbose (bool): prints status messages as well as download progress.
+        silent (bool): if error messages should be ignored and not printed.
 
     Returns:
+        0 if there was an error in this function
         1 if the download and write is successfull
         2 if the file already exists
         r.status_code if a connection error occurred
     '''
 
     if verbose:
-        safe_print('\nDownloading: {}'.format(output_name))
+        safe_print('\nDownloading: {}'.format(name))
 
     # Get the size of the remote file through a streamed request.
     r = requests.get(url, stream=True)
 
     if r.status_code != 200:
-        if verbose:
+        if not silent:
             print("Request error {}".format(r.status_code))
 
         return r.status_code
 
     total_length = r.headers.get('content-length')
 
+    if total_length is None:
+        if not silent:
+            print("Request does not contain an entry for the content length.")
+
+        return 0
+
     if not force:
-        if os.path.isfile(os.path.join(output_folder, output_name)):
-            if int(os.path.getsize(os.path.join(output_folder, output_name))) != int(total_length):
+        if os.path.isfile(os.path.join(output, name)):
+            if os.path.getsize(os.path.join(output, name)) != int(total_length):
                 if verbose:
                     print(
                         'File already found but the file size doesn\'t match up. Redownloading.')
@@ -183,7 +188,7 @@ def download_file(url, output_folder, output_name, force=False, verbose=False):
                 return 2
 
     # Open a file stream which will be used to save the output string
-    with open(output_folder + "/" + re.sub('[\\/:*?<>|]', "", output_name), "wb") as f:
+    with open(output + "/" + re.sub('[\\/:*?<>|]', "", name), "wb") as f:
         # Storage variables used while evaluating the already downloaded data.
         dl = 0
         total_length = int(total_length)
@@ -207,21 +212,20 @@ def download_file(url, output_folder, output_name, force=False, verbose=False):
                         50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
                     sys.stdout.flush()
 
-        # Insert a new line to improve console formatting.
-        if verbose:
-            print()
-
     return 1
 
 
 class Track:
 
-    def __init__(self, url, request=None, title=None, artist=None, album=None, index=None):
+    def __init__(self, url, output, request=None, title=None, artist=None, album=None, index=None, verbose=False, silent=False, art_enabled=False):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
 
         self.url = url  # URL to download files from.
+
+        # Output directory to create the new album dir in.
+        self.output = output
 
         # Information about the given track. These are assigned in the prepare
         # function which needs to be called before anything else can be done.
@@ -239,6 +243,15 @@ class Track:
         # Store the track request object for later reference.
         self.request = request
         self.content = None
+
+        # Set if status messages should be printed to the console.
+        self.verbose = verbose
+
+        # Set if error messages should be silenced.
+        self.silent = silent
+
+        # Set if the cover should be downloaded as well.
+        self.art_enabled = art_enabled
 
     def fetch(self):
         if not valid_url(self.url):  # Validate the URL
@@ -259,6 +272,10 @@ class Track:
 
         # Get the content from the request and decode it correctly.
         self.content = self.request.content.decode('utf-8')
+
+        # Verify that this is a track page.
+        if not page_type(self.content) == "track":
+            print("The supplied URL is not a track page.")
 
         # Get the title of the album.
         if not self.title:
@@ -301,15 +318,63 @@ class Track:
 
         self.mp3_url = info["file"]["mp3-128"]
 
+        try:
+            # Add in http for those times when Bandcamp is rude.
+            if self.mp3_url[:2] == "//":
+                self.mp3_url = "http:" + self.mp3_url
+
+        except TypeError:
+            if not self.silent:
+                safe_print(
+                    '\n {} is not openly available.'.format(self.title))
+
+                return False
+
+        return True
+
+    def download(self):
+        if self.verbose:
+            safe_print('\nWriting file to {}'.format(self.output))
+
+        # Clean up the main title.
+        clean_title = format_information(
+            self.title,
+            self.artist,
+            self.album,
+            self.index
+        )
+
+        # Download the file.
+        download_file(self.mp3_url, self.output, clean_title +
+                      ".mp3", verbose=self.verbose)
+
+        if self.art_enabled:
+            s = download_file(self.art_url, self.output,
+                              clean_title + self.art_url[-4:])
+
+            if self.verbose:
+                if s == 1:
+                    safe_print('\nSaved album art to {}/{}{}'.format(
+                        self.output, clean_title, self.art_url[-4:]))
+
+                elif s == 2:
+                    print('\nArtwork already found.')
+
+                else:
+                    print('\nFailed to download the artwork. Error code {}'.format(s))
+
 
 class Album:
 
-    def __init__(self, url, request=None, title=None, artist=None):
+    def __init__(self, url, output, request=None, title=None, artist=None, verbose=False, silent=False, art_enabled=False):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
 
         self.url = url  # URL to download files from.
+
+        # Output directory to create the new album dir in.
+        self.output = output
 
         # Basic information used when writing tracks.
         self.title = title
@@ -318,6 +383,165 @@ class Album:
         # Extra URLs to make further requests easier.
         self.base_url = None
         self.art_url = None
+
+        self.queue = []  # Queue array to store album tracks in.
+
+        # Store the album request object for later reference.
+        self.request = request
+        self.content = None
+
+        # Set if status messages should be printed to the console.
+        self.verbose = verbose
+
+        # Set if error messages should be silenced.
+        self.silent = silent
+
+        # Set if the cover should be downloaded as well.
+        self.art_enabled = art_enabled
+
+    def fetch(self):
+        if not valid_url(self.url):  # Validate the URL
+            if not self.silent:
+                print("The supplied URL is not a valid URL.")
+
+            return False
+
+        if not self.request:
+            # Make a request to the album URL.
+            self.request = request.get(self.url)
+
+        if self.request.status_code != 200:
+            if not self.silent:
+                print("An error occurred while trying to access your supplied URL. Status code: {}".format(
+                    self.request.status_code))
+
+            self.request = None
+
+            return False
+
+        # Get the content from the request and decode it correctly.
+        self.content = self.request.content.decode('utf-8')
+
+        # Verify that this is an album page.
+        if not page_type(self.content) == "album":
+            if not self.silent:
+                print("The supplied URL is not an album page.")
+
+            return False
+
+        # Get the title of the album.
+        if not self.title:
+            self.title = html.unescape(re.sub(
+                '[:*?<>|]', '', string_between(self.content, '<meta name="Description" content=', " by ")[2:]))
+
+        # Get the main artist of the album.
+        # Find the artist title of the supplied Bandcamp page.
+        if not self.artist:
+            try:
+                self.artist = html.unescape(string_between(
+                    string_between(self.content, "var BandData = {", "}"), 'name : "', '",'))
+
+            except IndexError:
+                try:
+                    self.artist = html.unescape(string_between(
+                        string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
+
+                except:
+                    if self.verbose:
+                        print("\nFailed to fetch the band/artist title")
+
+        # Setup the correct output directory name.
+        self.output = os.path.join(
+            self.output, self.artist + " - " + self.title, "")
+
+        # Create a new album folder if it doesn't already exist.
+        if not os.path.exists(self.output):
+            os.makedirs(self.output)
+
+        # Retrieve the base page URL.
+        self.base_url = "{}//{}".format(str(self.url).split("/")[
+            0], str(self.url).split("/")[2])
+
+        # Fetch the album URL.
+        self.art_url = string_between(
+            self.content, '<a class="popupImage" href="', '">')
+
+        # Split the string and convert it into an array.
+        tracks = self.content.split(
+            '<table class="track_list track_table" id="track_table">', 1)[1].split('</table>')[0].split("<tr")
+
+        # Iterate over the tracks found and begin traversing the given
+        # track's title information and insert the track data in the queue.
+        if self.verbose:
+            print('\nListing found tracks')
+
+        track_index = 0
+
+        for i, track in enumerate(tracks):
+            position = track.find('<a href="/track')
+
+            if position != -1:
+                # Find the track's name.
+                position = position + len('<a href="/track')
+                track_name = ""
+
+                while track[position] != '"':
+                    track_name = track_name + track[position]
+                    position = position + 1
+
+                if track_name != "":
+                    track_index += 1
+
+                    # Print the prepared track.
+                    if self.verbose:
+                        safe_print(self.base_url + "/track" + track_name)
+
+                    # Create a new track instance with the given URL.
+                    track = Track(self.base_url + "/track" + track_name, self.output,
+                                  album=self.title, index=track_index, verbose=self.verbose)
+
+                    # Retrive track data and store it in the instance.
+                    if track.fetch():
+
+                        # Insert the acquired data into the queue.
+                        self.queue.insert(i, track)
+
+        return True
+
+    def download(self):
+        if self.verbose:
+            safe_print('\nWriting album files to {}'.format(self.output))
+
+        for i in range(0, len(self.queue)):
+            self.queue[i].download()
+
+        if self.art_enabled:
+            s = download_file(self.art_url, self.output,
+                              "cover" + self.art_url[-4:])
+
+            if self.verbose:
+                if s == 1:
+                    safe_print('\nSaved album art to {}{}{}'.format(
+                        self.output, "cover", self.art_url[-4:]))
+
+                elif s == 2:
+                    print('\nArtwork already found.')
+
+                else:
+                    print('\nFailed to download the artwork. Error code {}'.format(s))
+
+
+class Discography:
+
+    def __init__(self, url, output, request=None, title=None, artist=None):
+        # Requests and other information can optionally be filled to remove unneccessary
+        # operations such as making a request to a URL that has already been fetched
+        # by another component.
+
+        self.url = url  # URL to get information from.
+
+        # Basic information used when writing tracks.
+        self.artist = artist
 
         self.queue = []  # Queue array to store album tracks in.
 
@@ -345,79 +569,11 @@ class Album:
         # Get the content from the request and decode it correctly.
         self.content = self.request.content.decode('utf-8')
 
-        # Get the title of the album.
-        if not self.title:
-            self.title = html.unescape(re.sub(
-                '[:*?<>|]', '', string_between(self.content, '<meta name="Description" content=', " by ")[2:]))
+        # Verify that this is an album page.
+        if not page_type(self.content) == "discography":
+            print("The supplied URL is not a discography page.")
 
-        # Get the main artist of the album.
-        # Find the artist title of the supplied Bandcamp page.
-        if not self.artist:
-            try:
-                self.artist = html.unescape(string_between(
-                    string_between(self.content, "var BandData = {", "}"), 'name : "', '",'))
-
-            except IndexError:
-                try:
-                    self.artist = html.unescape(string_between(
-                        string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
-
-                except:
-                    print("\nFailed to fetch the band/artist title")
-
-        # Retrieve the base page URL.
-        self.base_url = "{}//{}".format(str(self.url).split("/")[
-            0], str(self.url).split("/")[2])
-
-        # Fetch the album URL.
-        self.art_url = string_between(
-            self.content, '<a class="popupImage" href="', '">')
-
-        # Split the string and convert it into an array.
-        tracks = self.content.split(
-            '<table class="track_list track_table" id="track_table">', 1)[1].split('</table>')[0].split("<tr")
-
-        # Iterate over the tracks found and begin traversing the given
-        # track's title information and insert the track data in the queue.
-        print('\nListing found tracks')
-
-        track_index = 0
-
-        for i, track in enumerate(tracks):
-            position = track.find('<a href="/track')
-
-            if position != -1:
-                # Find the track's name.
-                position = position + len('<a href="/track')
-                track_name = ""
-
-                while track[position] != '"':
-                    track_name = track_name + track[position]
-                    position = position + 1
-
-                if track_name != "":
-                    track_index += 1
-
-                    # Print the prepared track.
-                    safe_print(self.base_url + "/track" + track_name)
-
-                    # Create a new track instance with the given URL.
-                    track = Track(self.base_url + "/track" + track_name,
-                                  album=self.title, index=track_index)
-
-                    # Retrive track data and store it in the instance.
-                    track.fetch()
-
-                    # Insert the acquired data into the queue.
-                    self.queue.insert(i, track)
-
-        return True
-
-
-class Discography:
-
-    def __init__(self):
-        # TODO: Handle this type of page.
+    def download(self):
         pass
 
 
@@ -459,95 +615,6 @@ class Downloader:
             # If no path is specified use the absolute path of the main file.
             self.output = self.script_path
 
-    def download_track(self, url="", output="", request=None, preplace=None, standalone=False):
-        url = url or self.url
-        output = output or self.output
-
-        if not preplace:
-            track = Track(url, request)
-            track.fetch()
-
-        else:
-            track = preplace
-
-        title = format_information(
-            track.title,
-            track.artist,
-            track.album,
-            track.index
-        )
-
-        try:
-            # Retrieve the MP3 file URL from the queue-item.
-            url = track.mp3_url
-
-            # Add in http for those times when Bandcamp is rude.
-            if url[:2] == "//":
-                url = "http:" + url
-
-        except TypeError:
-            safe_print(
-                '\n {} is not openly available - skipping track'.format(title))
-
-        if standalone:
-            safe_print('\nWriting file to {}'.format(output))
-
-        # Download the file.
-        download_file(url, output, title + ".mp3", verbose=True)
-
-        if standalone:
-            s = download_file(track.art_url, output,
-                              "cover" + track.art_url[-4:])
-
-            if s == 1:
-                safe_print('\nSaved album art to {}/{}{}'.format(
-                    self.output, title, track.art_url[-4:]))
-
-            elif s == 2:
-                print('\nArtwork already found.')
-
-            else:
-                print('\nFailed to download the artwork. Error code {}'.format(s))
-
-    def download_album(self, url="", output="", request=None, preplace=None, standalone=False):
-        url = url or self.url
-        output = output or self.output
-
-        if not preplace:
-            album = Album(url, request)
-            album.fetch()
-
-        else:
-            album = preplace
-
-        album_output = os.path.join(
-            output, album.artist + " - " + album.title, "")
-
-        # Create a new album folder if it doesn't already exist.
-        if not os.path.exists(album_output):
-            os.makedirs(album_output)
-
-        if standalone:
-            safe_print('\nWriting album files to {}'.format(album_output))
-
-        for i in range(0, len(album.queue)):
-            self.download_track(
-                album.queue[i].url, output=album_output, preplace=album.queue[i])
-
-        if standalone:
-            s = download_file(album.art_url, album_output,
-                              "cover" + album.art_url[-4:])
-
-            if s == 1:
-                safe_print('\nSaved album art to {}{}{}'.format(
-                    album_output, "cover", album.art_url[-4:]))
-
-            elif s == 2:
-                print('\nArtwork already found.')
-
-            else:
-                print('\nFailed to download the artwork. Error code {}'.format(s))
-
     def run(self):
         '''
         Begins downloading the content from the prepared settings.
@@ -568,16 +635,26 @@ class Downloader:
             return
 
         # Get the type of the page supplied to the downloader.
-        pagetype = get_page_type(self.content)
+        pagetype = page_type(self.content)
 
         # TODO: Add page and discography downloads.
 
         if pagetype == "track":
-            self.download_track(request=self.request, standalone=True)
+            track = Track(self.url, self.output,
+                          request=self.request, verbose=True, art_enabled=True)
+
+            track.fetch()
+            track.download()
+
             print("\nFinished track download.")
 
         elif pagetype == "album":
-            self.download_album(request=self.request, standalone=True)
+            album = Album(self.url, self.output,
+                          request=self.request, verbose=True, art_enabled=True)
+
+            album.fetch()
+            album.download()
+
             print("\nFinished album download.")
 
         elif pagetype == "discography":
