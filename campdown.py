@@ -360,20 +360,11 @@ class Track:
                     self.mp3_url = "http:" + self.mp3_url
 
             except TypeError:
-                if self.verbose:
-                    safe_print(strike(self.url))
-
-                    return False
-
-            if self.verbose:
-                safe_print(self.url)
+                return False
 
             return True
 
         else:
-            if self.verbose:
-                safe_print(strike(self.url))
-
             return False
 
     def download(self):
@@ -546,9 +537,15 @@ class Album:
 
             # Retrive track data and store it in the instance.
             if track.fetch():
+                if self.verbose:
+                    safe_print(track.url)
 
                 # Insert the acquired data into the queue.
                 self.queue.insert(i, track)
+
+            else:
+                if self.verbose:
+                    safe_print(strike(track.url))
 
     def download(self):
         if self.verbose:
