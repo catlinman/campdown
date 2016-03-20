@@ -288,8 +288,8 @@ class Track:
 
         # Get the title of the album.
         if not self.title:
-            self.title = html.unescape(re.sub(
-                '[:*?<>|]', '', string_between(self.content, '<meta name="Description" content=', " by ")[2:]))
+            self.title = html.unescape(string_between(
+                self.content, '<h2 class="trackTitle" itemprop="name">', "</h2>")).strip()
 
         # Get the main artist of the album.
         if not self.artist:
@@ -495,31 +495,35 @@ class Album:
         for i, track in enumerate(tracks):
             position = track.find('<a href="/track/')
 
-            if position != -1:
-                # Find the track's name.
-                position = position + 16
-                track_name = ""
+            if position == -1:
+                continue
 
-                while track[position] != '"':
-                    track_name = track_name + track[position]
-                    position = position + 1
+            # Find the track's name.
+            position += 16
+            track_name = ""
 
-                if track_name != "":
-                    track_index += 1
+            while track[position] != '"':
+                track_name += track[position]
+                position += 1
 
-                    # Print the prepared track.
-                    if self.verbose:
-                        safe_print(self.base_url + "/track/" + track_name)
+            if track_name == "":
+                continue
 
-                    # Create a new track instance with the given URL.
-                    track = Track(self.base_url + "/track/" + track_name, self.output,
-                                  album=self.title, index=track_index, verbose=self.verbose)
+            track_index += 1
 
-                    # Retrive track data and store it in the instance.
-                    if track.fetch():
+            # Print the prepared track.
+            if self.verbose:
+                safe_print(self.base_url + "/track/" + track_name)
 
-                        # Insert the acquired data into the queue.
-                        self.queue.insert(i, track)
+            # Create a new track instance with the given URL.
+            track = Track(self.base_url + "/track/" + track_name, self.output,
+                          album=self.title, index=track_index, verbose=self.verbose)
+
+            # Retrive track data and store it in the instance.
+            if track.fetch():
+
+                # Insert the acquired data into the queue.
+                self.queue.insert(i, track)
 
     def download(self):
         if self.verbose:
@@ -623,7 +627,7 @@ class Discography:
             len(self.content)) if self.content.startswith('<a href="/album/', i)]
 
         if self.verbose:
-            print('\nListing found discography content.')
+            print('\nListing found discography content')
 
         for i, position in enumerate(albums):
             position += 16  # Add the length of the search string.
@@ -634,16 +638,18 @@ class Discography:
                 album_name += self.content[position]
                 position += 1
 
-            if album_name != "":
-                # Print the prepared track.
-                if self.verbose:
-                    safe_print(self.base_url + "/album/" + album_name)
+            if album_name == "":
+                continue
 
-                # Create a new track instance with the given URL.
-                album = Album(self.base_url + "/album/" +
-                              album_name, self.output, verbose=self.verbose)
+            # Print the prepared track.
+            if self.verbose:
+                safe_print(self.base_url + "/album/" + album_name)
 
-                self.queue.insert(len(self.queue), album)
+            # Create a new track instance with the given URL.
+            album = Album(self.base_url + "/album/" +
+                          album_name, self.output, verbose=self.verbose)
+
+            self.queue.insert(len(self.queue), album)
 
         for i, position in enumerate(tracks):
             position += 16  # Add the length of the search string.
