@@ -794,10 +794,14 @@ class Downloader:
             track = Track(self.url, self.output,
                           request=self.request, verbose=True, art_enabled=True)
 
-            track.fetch()
-            track.download()
+            if track.fetch():
+                track.download()
 
-            print("\nFinished track download. Downloader complete.")
+                print("\nFinished track download. Downloader complete.")
+
+            else:
+                print(
+                    "\nThe track you are trying to download is not publicly available. Consider purchasing it if you want it.")
 
         elif pagetype == "album":
             print("\nDetected Bandcamp album.")
