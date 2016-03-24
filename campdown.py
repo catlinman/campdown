@@ -306,12 +306,12 @@ class Track:
         if not page_type(self.content) == "track":
             print("The supplied URL is not a track page.")
 
-        # Get the title of the album.
+        # Get the title of the track.
         if not self.title:
             self.title = html.unescape(string_between(
                 self.content, '<h2 class="trackTitle" itemprop="name">', "</h2>")).strip()
 
-        # Get the main artist of the album.
+        # Get the main artist of the track.
         if not self.artist:
             self.artist = html.unescape(string_between(string_between(
                 self.content, '<span itemprop="byArtist">', '/a>'),
@@ -331,8 +331,7 @@ class Track:
             if not self.artist:
                 print("\nFailed to fetch the band/artist title")
 
-        # Add the title of the album this single track might belong to, to
-        # the information that will make up the output filename.
+        # Add the album to which this single track might belong to.
         if not self.album:
             try:
                 self.album = html.unescape(string_between(
@@ -340,6 +339,11 @@ class Track:
 
             except IndexError:
                 self.album = ""
+
+        # Make the track name safe for file writing.
+        self.title = safe_filename(self.title)
+        self.artist = safe_filename(self.artist)
+        self.album = safe_filename(self.album)
 
         # Fetch the track art URL.
         self.art_url = string_between(
@@ -481,6 +485,10 @@ class Album:
             if not self.artist:
                 if not self.silent:
                     print("\nFailed to fetch the band/artist title")
+
+        # Make the album name safe for file writing.
+        self.title = safe_filename(self.title)
+        self.artist = safe_filename(self.artist)
 
         # Setup the correct output directory name.
         self.output = os.path.join(
@@ -641,6 +649,9 @@ class Discography:
 
             safe_print(
                 '\nSet "{}" as the working directory.'.format(self.output))
+
+        # Make the artist name safe for file writing.
+        self.artist = safe_filename(self.artist)
 
         tracks = [i for i in range(
             len(self.content)) if self.content.startswith('<a href="/track/', i)]
