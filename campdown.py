@@ -476,9 +476,17 @@ class Album:
         # Find the artist title of the supplied Bandcamp page.
         if not self.artist:
             self.artist = html.unescape(string_between(string_between(
-                self.content, "var BandData = {", "}"), 'name : "', '",'))
+                self.content, '<span itemprop="byArtist">', '/a>'),
+                ">", "<"))
 
-            if self.artist == "Various Artists" or not self.artist:
+            if self.artist == "Various Artists":
+                self.artist = ""
+
+            if not self.artist:
+                self.artist = html.unescape(string_between(string_between(
+                    self.content, "var BandData = {", "}"), 'name : "', '",'))
+
+            if not self.artist:
                 self.artist = html.unescape(string_between(
                     string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
 
