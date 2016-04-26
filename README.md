@@ -10,8 +10,7 @@ To run Campdown, simply open up the Python interpreter or run the script in your
 
 Campdown requires *requests* and *mutagen* which you can download using *pip*.
 
-    $ pip install requests
-    $ pip install mutagen
+    $ pip install requests mutagen
 
 ## Notice ##
 
