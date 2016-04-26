@@ -8,9 +8,10 @@ To run Campdown, simply open up the Python interpreter or run the script in your
 
     $ python campdown.py [Track or album URL] [Optional output folder location]
 
-Campdown requires *requests* which you can download using *pip*.
+Campdown requires *requests* and *mutagen* which you can download using *pip*.
 
     $ pip install requests
+    $ pip install mutagen
 
 ## Notice ##
 

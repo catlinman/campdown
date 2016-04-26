@@ -10,6 +10,9 @@ import platform
 
 import requests
 
+from mutagen.id3 import ID3NoHeaderError
+from mutagen.id3 import ID3, TIT2, TALB, TPE1, TPE2, COMM, TDRC, TRCK
+
 
 def strike(string):
     '''
@@ -255,6 +258,7 @@ class Track:
         # function which needs to be called before anything else can be done.
         self.title = None
         self.artist = None
+        self.date = None
 
         # These values should be set by passing arguments to the constructor.
         # Album is used to set a fixed album name and to keep name consistency.
@@ -340,6 +344,15 @@ class Track:
             except IndexError:
                 self.album = ""
 
+        # Fetch the date this track was released on.
+        if not self.date:
+            try:
+                self.date = html.unescape(string_between(
+                    self.content, '<meta itemprop="datePublished" content="', '">'))[0:4]
+
+            except IndexError:
+                self.date = ""
+
         # Make the track name safe for file writing.
         self.title = safe_filename(self.title)
         self.artist = safe_filename(self.artist)
@@ -384,23 +397,73 @@ class Track:
         )
 
         # Download the file.
-        download_file(self.mp3_url, self.output, clean_title +
-                      ".mp3", verbose=self.verbose)
+        s = download_file(self.mp3_url, self.output, clean_title +
+                          ".mp3", verbose=self.verbose)
 
+        if s == 0 and not self.silent:
+            print('\nFailed to download the file. Error code {}'.format(s))
+
+            return 0
+
+        # Fix ID3 tags.
+        # create ID3 tag if not present
+        try:
+            tags = ID3(os.path.join(self.output, safe_filename(clean_title + ".mp3")))
+
+        except ID3NoHeaderError:
+            tags = ID3()
+
+        # Title and artist tags. Split the title if it contains the artist tag.
+        if " - " in self.title:
+            split_title = str(self.title).split(" - ", 1)
+
+            tags["TPE1"] = TPE1(encoding=3, text=str(split_title[0]))
+            tags["TIT2"] = TIT2(encoding=3, text=str(split_title[1]))
+
+        else:
+            tags["TIT2"] = TIT2(encoding=3, text=str(self.title))
+
+            tags["TPE1"] = TPE1(encoding=3, text=str(self.artist))
+
+        # Album tag. Make sure we have it.
+        if self.album:
+            tags["TALB"] = TALB(encoding=3, text=str(self.album))
+
+        # Track index tag.
+        if self.index:
+            tags["TRCK"] = TRCK(encoding=3, text=str(self.index))
+
+        # Track date.
+        if self.date:
+            tags["TDRC"] = TDRC(encoding=3, text=str(self.date))
+
+        # Album artist
+        tags["TPE2"] = TPE2(encoding=3, text=str(self.artist))
+
+        # Retrieve the base page URL.
+        base_url = "{}//{}".format(str(self.url).split("/")[
+            0], str(self.url).split("/")[2])
+
+        # Add the Bandcamp base comment in the ID3 comment tag.
+        tags["COMM"] = COMM(encoding=3, lang=u'eng', desc='desc', text=u'Visit {}'.format(base_url))
+
+        # Save all tags to the track.
+        tags.save(os.path.join(self.output, safe_filename(clean_title + ".mp3")))
+
+        # Download artwork if it is enabled.
         if self.art_enabled:
             s = download_file(self.art_url, self.output,
                               clean_title + self.art_url[-4:])
 
-            if self.verbose:
-                if s == 1:
-                    safe_print('\nSaved track art to {}{}{}'.format(
-                        self.output, clean_title, self.art_url[-4:]))
+            if s == 1 and self.verbose:
+                safe_print('\nSaved track art to {}{}{}'.format(
+                    self.output, clean_title, self.art_url[-4:]))
 
-                elif s == 2:
-                    print('\nArtwork already found.')
+            elif s == 2 and self.verbose:
+                print('\nArtwork already found.')
 
-                else:
-                    print('\nFailed to download the artwork. Error code {}'.format(s))
+            elif not self.silent:
+                print('\nFailed to download the artwork. Error code {}'.format(s))
 
 
 class Album:
