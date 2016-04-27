@@ -138,7 +138,15 @@ def format_information(title, artist, album="", index=0):
 
 
 def valid_url(url):
-    # TODO: Further URL validation.
+    '''
+    Validate a URL and make sure that it has the correct URL syntax.
+
+    Args:
+        url (str): URL string to be evaluated.
+
+    Returns:
+        True if the URL is valid. False if it is invalid.
+    '''
     if "http://" not in url and "https://" not in url:
         return False
 
@@ -146,8 +154,18 @@ def valid_url(url):
 
 
 def page_type(content):
-    # Identify a Bandcamp page and it's type by analysing request content.
-    # Check if the content contains a track list.
+    '''
+    Evaluate the request content and identify the type of the page.
+
+    Args:
+        content (str): page content to analyse.
+
+    Returns:
+        "album" if a track list was detected.
+        "discography" if a set of albums and tracks was found.
+        "track" if the above do not apply but a Bandcamp page was still identified.
+        "none" if the supplied page is not a Bandcamp page.
+    '''
     if "bandcamp.com" in content:
         if "Digital Album" and "track_list" in content:
             return "album"
@@ -166,7 +184,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
     '''
     Downloads and saves a file from the supplied URL and prints progress
     to the console. Uses ranged requests to make downloads from Bandcamp faster.
-    Returns 0 if the download failed, 1 if the download was successfull and 2 if
+    Returns 0 if the download failed, 1 if the download was successful and 2 if
     the download file was already found and has the same file size.
 
     Args:
@@ -180,7 +198,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
 
     Returns:
         0 if there was an error in this function
-        1 if the download and write is successfull
+        1 if the download and write is successful
         2 if the file already exists
         r.status_code if a connection error occurred
     '''
@@ -261,6 +279,27 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
 
 
 class Track:
+    '''
+    Track class of Campdown. Base class of Campdown. Takes care of downloading of
+    information and streaming of file contents. This file directly uses the
+    download_file function to get the mp3 file from the supplied URLs data.
+    The track class is used by every other class of Campdown and partially
+    receives information from this related classes.
+
+    Args:
+        url (str): Bandcamp URL to analyse and download from.
+        output (str): relative or absolute path to write to.
+        request (request): if supplied this given request's content will be
+            analysed instead of making a new request to the mandatory URL.
+        album (str): optionally the album this track belongs to.
+        index (str): optionally the index this track has in the album.
+        verbose (bool): sets if status messages and general information
+            should be printed. Errors are still printed regardless of this.
+        silent (bool): sets if error messages should not be printed.
+        art_enabled (bool): if True the Bandcamp page's artwork will be
+            downloaded and saved alongside each of the found tracks.
+        id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
+    '''
 
     def __init__(self, url, output, request=None, album=None, index=None, verbose=False, silent=False, art_enabled=False, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
@@ -270,7 +309,7 @@ class Track:
         self.url = url  # URL to download files from.
         self.output = output  # Output directory for the track download.
 
-        # Information about the given track. These are assigned in the fetch
+        # Information about the given track. These are assigned in the prepare
         # function which needs to be called before anything else can be done.
         self.title = None
         self.artist = None
@@ -304,7 +343,15 @@ class Track:
 
         self.id3_enabled = id3_enabled
 
-    def fetch(self):
+    def prepare(self):
+        '''
+        Prepares the track by gathering information. If no previous request was
+        made and supplied during instantiation one will be made at this point.
+
+        Returns:
+            True if preparation is successful. False if an error occurred.
+        '''
+
         if not valid_url(self.url):  # Validate the URL
             print("The supplied URL is not a valid URL.")
             return False
@@ -351,7 +398,7 @@ class Track:
                     string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
 
             if not self.artist:
-                print("\nFailed to fetch the band/artist title")
+                print("\nFailed to prepare the band/artist title")
 
         # Add the album to which this single track might belong to.
         if not self.album:
@@ -362,7 +409,7 @@ class Track:
             except IndexError:
                 self.album = ""
 
-        # Fetch the date this track was released on.
+        # prepare the date this track was released on.
         if not self.date:
             try:
                 self.date = html.unescape(string_between(
@@ -376,7 +423,7 @@ class Track:
         self.artist = safe_filename(self.artist)
         self.album = safe_filename(self.album)
 
-        # Fetch the track art URL.
+        # prepare the track art URL.
         self.art_url = string_between(
             self.content, '<a class="popupImage" href="', '">')
 
@@ -403,6 +450,12 @@ class Track:
             return False
 
     def download(self):
+        '''
+        Starts the download process for this track. Also writes the file and
+        applies ID3 tags if specified. Requires the track to have been prepared
+        by the prepare method beforehand.
+        '''
+
         if not self.album:
             safe_print('\nWriting file to {}'.format(self.output))
 
@@ -486,6 +539,24 @@ class Track:
 
 
 class Album:
+    '''
+    Album class of Campdown. Used by the main downloader as well as the
+    discography class. This class takes in a URL and treats it as a Bandcamp
+    album page. Takes over downloading of files as well as fetching of general
+    information which can be used by other modules.
+
+    Args:
+        url (str): Bandcamp URL to analyse and download from.
+        output (str): relative or absolute path to write to.
+        request (request): if supplied this given request's content will be
+            analysed instead of making a new request to the mandatory URL.
+        verbose (bool): sets if status messages and general information
+            should be printed. Errors are still printed regardless of this.
+        silent (bool): sets if error messages should not be printed.
+        art_enabled (bool): if True the Bandcamp page's artwork will be
+            downloaded and saved alongside each of the found tracks.
+        id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
+    '''
 
     def __init__(self, url, output, request=None, verbose=False, silent=False, art_enabled=True, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
@@ -522,7 +593,17 @@ class Album:
         # Set if ID3 tags should be written to the output file.
         self.id3_enabled = id3_enabled
 
-    def fetch(self):
+    def prepare(self):
+        '''
+        Prepares the album class by gathering information about the album and
+        it's tracks. If no previous request was made and supplied during
+        instantiation one will be made at this point. This process does not
+        require making requests to the track URLs.
+
+        Returns:
+            True if preparation is successful. False if an error occurred.
+        '''
+
         if not valid_url(self.url):  # Validate the URL
             if not self.silent:
                 print("The supplied URL is not a valid URL.")
@@ -577,7 +658,7 @@ class Album:
 
             if not self.artist:
                 if not self.silent:
-                    print("\nFailed to fetch the band/artist title")
+                    print("\nFailed to prepare the band/artist title")
 
         # Make the album name safe for file writing.
         self.title = safe_filename(self.title)
@@ -595,13 +676,19 @@ class Album:
         self.base_url = "{}//{}".format(str(self.url).split("/")[
             0], str(self.url).split("/")[2])
 
-        # Fetch the album URL.
+        # prepare the album URL.
         self.art_url = string_between(
             self.content, '<a class="popupImage" href="', '">')
 
         return True
 
-    def fetch_tracks(self):
+    def fetch(self):
+        '''
+        Gathers required information for the tracks in this album and prepares
+        them to be used by the download method. Requests are made to each of the
+        tracks' Bandcamp pages. Requires the prepare method to be run beforehand.
+        '''
+
         # Split the string and convert it into an array.
         tracks = self.content.split(
             '<table class="track_list track_table" id="track_table">', 1)[1].split('</table>')[0].split("<tr")
@@ -637,7 +724,7 @@ class Album:
                           album=self.title, index=track_index, verbose=self.verbose)
 
             # Retrive track data and store it in the instance.
-            if track.fetch():
+            if track.prepare():
                 if self.verbose:
                     safe_print(track.url)
 
@@ -649,6 +736,11 @@ class Album:
                     safe_print(strike(track.url))
 
     def download(self):
+        '''
+        Starts the download process for each of the queue's items. This method
+        requires the fetch method to be run beforehand.
+        '''
+
         if self.verbose:
             safe_print('\nWriting album to {}'.format(self.output))
 
@@ -672,6 +764,23 @@ class Album:
 
 
 class Discography:
+    '''
+    Discography class of Campdown. This class takes in a URL and treats it as a
+    Bandcamp discography page. Takes over downloading of files as well as
+    fetching of general information which can be used by other modules
+
+    Args:
+        url (str): Bandcamp URL to analyse and download from.
+        output (str): relative or absolute path to write to.
+        request (request): if supplied this given request's content will be
+            analysed instead of making a new request to the mandatory URL.
+        verbose (bool): sets if status messages and general information
+            should be printed. Errors are still printed regardless of this.
+        silent (bool): sets if error messages should not be printed.
+        art_enabled (bool): if True the Bandcamp page's artwork will be
+            downloaded and saved alongside each of the found albums/tracks.
+        id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
+    '''
 
     def __init__(self, url, output, request=None, verbose=False, silent=False, art_enabled=True, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
@@ -684,7 +793,8 @@ class Discography:
         # Basic information used when writing tracks.
         self.artist = None
 
-        self.queue = []  # Queue array to store album tracks in.
+        # Queue array to store album tracks in.
+        self.queue = []
 
         # Store the album request object for later reference.
         self.request = request
@@ -705,7 +815,14 @@ class Discography:
         # Set if ID3 tags should be written to files.
         self.id3_enabled = id3_enabled
 
-    def fetch(self):
+    def prepare(self):
+        '''
+        Prepares the discography class by gathering information about albums and
+        tracks. If no previous request was made and supplied during instantiation
+        one will be made at this point. This process does not require making
+        requests to the album and track URLs.
+        '''
+
         if not valid_url(self.url):  # Validate the URL
             print("The supplied URL is not a valid URL.")
             return False
@@ -803,22 +920,72 @@ class Discography:
         if self.verbose:
             print('\nBeginning downloads. Albums additionally require fetching tracks.')
 
-    def download(self):
+        return True
+
+    def fetch(self):
+        '''
+        Tells eachs of the queue's items to fetch their individual information
+        from their respective Bandcamp pages. This means that requests are made
+        to these pages. Requires the queue to be created by the prepare method
+        beforehand.
+        '''
+
         for i in range(0, len(self.queue)):
             if type(self.queue[i]) is Track:
+                self.queue[i].prepare()
+
+            elif type(self.queue[i]) is Album:
+                self.queue[i].prepare()
                 self.queue[i].fetch()
 
-                safe_print(
-                    '\nDownloading track "{}"'.format(self.queue[i].title))
+    def download(self):
+        '''
+        Starts the download process for each of the queue's items. This method
+        requires the fetch method to be run beforehand.
+        '''
+
+        for i in range(0, len(self.queue)):
+            if type(self.queue[i]) is Track:
+                if self.verbose:
+                    safe_print(
+                        '\nDownloading track "{}"'.format(self.queue[i].title))
 
                 self.queue[i].download()
 
             elif type(self.queue[i]) is Album:
-                self.queue[i].fetch()
-                safe_print(
-                    '\nDownloading album "{}"'.format(self.queue[i].title))
+                if self.verbose:
+                    safe_print(
+                        '\nDownloading album "{}"'.format(self.queue[i].title))
 
-                self.queue[i].fetch_tracks()
+                self.queue[i].download()
+
+    def fetch_download(self):
+        '''
+        Starts the download process for each of the queue's items. This method
+        is the same as the download and fetch method but chains them together
+        to start download files right away instead of preparing them. Good for
+        pages with a lot of tracks and albums.
+        '''
+
+        for i in range(0, len(self.queue)):
+            if type(self.queue[i]) is Track:
+                self.queue[i].prepare()
+
+                if self.verbose:
+                    safe_print(
+                        '\nDownloading track "{}"'.format(self.queue[i].title))
+
+                self.queue[i].fetch()
+                self.queue[i].download()
+
+            elif type(self.queue[i]) is Album:
+                self.queue[i].prepare()
+
+                if self.verbose:
+                    safe_print(
+                        '\nDownloading album "{}"'.format(self.queue[i].title))
+
+                self.queue[i].fetch()
                 self.queue[i].download()
 
 
@@ -826,17 +993,13 @@ class Downloader:
     '''
     Main class of Campdown. This class handles all other Campdown functions and
     executes them depending on the information it is given during initilzation.
+
+    Args:
+        url (str): Bandcamp URL to analyse and download from.
+        out (str): relative or absolute path to write to.
     '''
 
     def __init__(self, url, out=None):
-        '''
-        Init method of Campdown.
-
-        Args:
-            url (str): Bandcamp URL to analyse and download from.
-            out (str): relative or absolute path to write to.
-        '''
-
         self.url = url
         self.output = out
 
@@ -882,16 +1045,14 @@ class Downloader:
         # Get the type of the page supplied to the downloader.
         pagetype = page_type(self.content)
 
-        # TODO: Add page and discography downloads.
-
         if pagetype == "track":
             print("\nDetected Bandcamp track.")
 
             track = Track(self.url, self.output,
                           request=self.request, verbose=True, art_enabled=True)
 
-            if track.fetch():
-                track.download()
+            if track.prepare():  # Prepare the track by filling out content.
+                track.download()  # Begin the download process.
 
                 print("\nFinished track download. Downloader complete.")
 
@@ -905,9 +1066,9 @@ class Downloader:
             album = Album(self.url, self.output,
                           request=self.request, verbose=True, art_enabled=True)
 
-            album.fetch()
-            album.fetch_tracks()
-            album.download()
+            if album.prepare():  # Prepare the album with information from the supplied URL.
+                album.fetch()  # Make the album prepare it's tracks.
+                album.download()  # Start the download process.
 
             print("\nFinished album download. Downloader complete.")
 
@@ -917,8 +1078,8 @@ class Downloader:
             page = Discography(
                 self.url, self.output, request=self.request, verbose=True, art_enabled=True)
 
-            page.fetch()
-            page.download()
+            page.prepare()  # Make discography gather all information it requires.
+            page.fetch_download()  # Begin the download process.
 
             print("\nFinished discography download. Downloader complete.")
 
