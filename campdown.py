@@ -7,6 +7,9 @@ import re
 import json
 import html
 import platform
+import time
+
+from datetime import datetime
 
 import requests
 
@@ -159,7 +162,7 @@ def page_type(content):
         return "none"
 
 
-def download_file(url, output, name, force=False, verbose=False, silent=False):
+def download_file(url, output, name, force=False, verbose=False, silent=False, timeout=1):
     '''
     Downloads and saves a file from the supplied URL and prints progress
     to the console. Uses ranged requests to make downloads from Bandcamp faster.
@@ -173,6 +176,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False):
         force (bool): ignores checking if the file already exists.
         verbose (bool): prints status messages as well as download progress.
         silent (bool): if error messages should be ignored and not printed.
+        timeout (number): Seconds to sleep between new requests.
 
     Returns:
         0 if there was an error in this function
@@ -222,7 +226,19 @@ def download_file(url, output, name, force=False, verbose=False, silent=False):
         cleaned_length = int((total_length * 100) / pow(1024, 2)) / 100
         block_size = 2048
 
+        time_last = datetime.now()
         for i in range(math.ceil(total_length / 1048576)):
+            # Timeout to avoid spamming requests.
+            time_elapsed = (datetime.now() - time_last).total_seconds()
+
+            # Check if enough time has past. Else, sleep until the time is up.
+            if time_elapsed < timeout:
+                time.sleep(timeout - time_elapsed)
+
+            # Store the current time for the next loop.
+            time_last = datetime.now()
+
+            # Make a ranged request which will be used to stream data from.
             response = requests.get(url, headers={
                 'Range': 'bytes=' + str(i * 1048576) + "-" + str((i + 1) * (1048576) - 1)}, stream=True)
 
@@ -246,7 +262,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False):
 
 class Track:
 
-    def __init__(self, url, output, request=None, album=None, index=None, verbose=False, silent=False, art_enabled=False):
+    def __init__(self, url, output, request=None, album=None, index=None, verbose=False, silent=False, art_enabled=False, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
@@ -285,6 +301,8 @@ class Track:
         # Set if the cover should be downloaded as well.
         # This is disabled for tracks by default.
         self.art_enabled = art_enabled
+
+        self.id3_enabled = id3_enabled
 
     def fetch(self):
         if not valid_url(self.url):  # Validate the URL
@@ -400,55 +418,56 @@ class Track:
         s = download_file(self.mp3_url, self.output, clean_title +
                           ".mp3", verbose=self.verbose)
 
-        if s == 0 and not self.silent:
+        if s != 1 and s != 2 and not self.silent:
             print('\nFailed to download the file. Error code {}'.format(s))
 
-            return 0
+            return s
 
-        # Fix ID3 tags.
-        # create ID3 tag if not present
-        try:
-            tags = ID3(os.path.join(self.output, safe_filename(clean_title + ".mp3")))
+        # Write ID3 tags if the id3_enabled is true.
+        if self.id3_enabled:
+            # Fix ID3 tags. Create ID3 tags if not present.
+            try:
+                tags = ID3(os.path.join(self.output, safe_filename(clean_title + ".mp3")))
 
-        except ID3NoHeaderError:
-            tags = ID3()
+            except ID3NoHeaderError:
+                tags = ID3()
 
-        # Title and artist tags. Split the title if it contains the artist tag.
-        if " - " in self.title:
-            split_title = str(self.title).split(" - ", 1)
+            # Title and artist tags. Split the title if it contains the artist tag.
+            if " - " in self.title:
+                split_title = str(self.title).split(" - ", 1)
 
-            tags["TPE1"] = TPE1(encoding=3, text=str(split_title[0]))
-            tags["TIT2"] = TIT2(encoding=3, text=str(split_title[1]))
+                tags["TPE1"] = TPE1(encoding=3, text=str(split_title[0]))
+                tags["TIT2"] = TIT2(encoding=3, text=str(split_title[1]))
 
-        else:
-            tags["TIT2"] = TIT2(encoding=3, text=str(self.title))
+            else:
+                tags["TIT2"] = TIT2(encoding=3, text=str(self.title))
 
-            tags["TPE1"] = TPE1(encoding=3, text=str(self.artist))
+                tags["TPE1"] = TPE1(encoding=3, text=str(self.artist))
 
-        # Album tag. Make sure we have it.
-        if self.album:
-            tags["TALB"] = TALB(encoding=3, text=str(self.album))
+            # Album tag. Make sure we have it.
+            if self.album:
+                tags["TALB"] = TALB(encoding=3, text=str(self.album))
 
-        # Track index tag.
-        if self.index:
-            tags["TRCK"] = TRCK(encoding=3, text=str(self.index))
+            # Track index tag.
+            if self.index:
+                tags["TRCK"] = TRCK(encoding=3, text=str(self.index))
 
-        # Track date.
-        if self.date:
-            tags["TDRC"] = TDRC(encoding=3, text=str(self.date))
+            # Track date.
+            if self.date:
+                tags["TDRC"] = TDRC(encoding=3, text=str(self.date))
 
-        # Album artist
-        tags["TPE2"] = TPE2(encoding=3, text=str(self.artist))
+            # Album artist
+            tags["TPE2"] = TPE2(encoding=3, text=str(self.artist))
 
-        # Retrieve the base page URL.
-        base_url = "{}//{}".format(str(self.url).split("/")[
-            0], str(self.url).split("/")[2])
+            # Retrieve the base page URL.
+            base_url = "{}//{}".format(str(self.url).split("/")[
+                0], str(self.url).split("/")[2])
 
-        # Add the Bandcamp base comment in the ID3 comment tag.
-        tags["COMM"] = COMM(encoding=3, lang=u'eng', desc='desc', text=u'Visit {}'.format(base_url))
+            # Add the Bandcamp base comment in the ID3 comment tag.
+            tags["COMM"] = COMM(encoding=3, lang=u'eng', desc='desc', text=u'Visit {}'.format(base_url))
 
-        # Save all tags to the track.
-        tags.save(os.path.join(self.output, safe_filename(clean_title + ".mp3")))
+            # Save all tags to the track.
+            tags.save(os.path.join(self.output, safe_filename(clean_title + ".mp3")))
 
         # Download artwork if it is enabled.
         if self.art_enabled:
@@ -468,7 +487,7 @@ class Track:
 
 class Album:
 
-    def __init__(self, url, output, request=None, verbose=False, silent=False, art_enabled=True):
+    def __init__(self, url, output, request=None, verbose=False, silent=False, art_enabled=True, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
@@ -499,6 +518,9 @@ class Album:
         # Set if the cover should be downloaded as well.
         # This is active for albums by default.
         self.art_enabled = art_enabled
+
+        # Set if ID3 tags should be written to the output file.
+        self.id3_enabled = id3_enabled
 
     def fetch(self):
         if not valid_url(self.url):  # Validate the URL
@@ -651,7 +673,7 @@ class Album:
 
 class Discography:
 
-    def __init__(self, url, output, request=None, verbose=False, silent=False, art_enabled=True):
+    def __init__(self, url, output, request=None, verbose=False, silent=False, art_enabled=True, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
@@ -679,6 +701,9 @@ class Discography:
 
         # Set if the cover should be downloaded as well.
         self.art_enabled = art_enabled
+
+        # Set if ID3 tags should be written to files.
+        self.id3_enabled = id3_enabled
 
     def fetch(self):
         if not valid_url(self.url):  # Validate the URL
