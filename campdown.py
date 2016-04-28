@@ -517,7 +517,7 @@ class Track:
                 0], str(self.url).split("/")[2])
 
             # Add the Bandcamp base comment in the ID3 comment tag.
-            tags["COMM"] = COMM(encoding=3, lang=u'eng', desc='desc', text=u'Visit {}'.format(base_url))
+            tags["COMM"] = COMM(encoding=3, lang='XXX', desc=u'', text=u'Visit {}'.format(base_url))
 
             # Save all tags to the track.
             tags.save(os.path.join(self.output, safe_filename(clean_title + ".mp3")))
