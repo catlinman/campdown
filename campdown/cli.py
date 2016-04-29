@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-# Alternative to running setup.py and then using the main campdown command.
-# Acts as the CLI for the project.
+# This file should be the main entry point when running "campdown".
 
 """Campdown
 Usage:
@@ -11,7 +10,10 @@ Usage:
 # TODO: Insert extra command line arguments.
 
 import sys
-from campdown.downloader import Downloader
+
+# Uncommented this since I wasn't sure if that was causing errors. Still has
+# issues either way.
+#import campdown
 
 
 def main():
@@ -28,10 +30,11 @@ def main():
     except(IndexError):
         out = ""
 
-    downloader = Downloader(url, out)
+    #downloader = Downloader(url, out)
 
     try:
-        downloader.run()
+        pass
+        # downloader.run()
 
     except (KeyboardInterrupt):
         print("\nInterrupt caught. Exiting program...")
