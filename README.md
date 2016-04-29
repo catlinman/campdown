@@ -6,7 +6,7 @@ Campdown is a utility that can be used to automate downloading of tracks and alb
 
 To run Campdown, simply open up the Python interpreter or run the script in your native shell using the following command. Windows users should in this case make sure that they have their Python installation folder added to their PATH variable. The same goes for Python's script folder which contains *pip* by default.
 
-    $ python campdown.py [Track or album URL] [Optional output folder location]
+    $ python3 campdown [Track, album or discography URL] [Optional output folder location]
 
 Campdown requires *requests* and *mutagen* which you can download using *pip*.
 
