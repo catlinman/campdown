@@ -2,7 +2,7 @@
 import html
 import json
 
-from campdown.helpers import *
+from .helpers import *
 
 import requests
 from mutagen.id3 import ID3NoHeaderError

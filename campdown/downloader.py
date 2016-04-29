@@ -1,10 +1,10 @@
 
 import os
 
-from campdown.helpers import *
-from campdown.track import Track
-from campdown.album import Album
-from campdown.discography import Discography
+from .helpers import *
+from .track import Track
+from .album import Album
+from .discography import Discography
 
 import requests
 

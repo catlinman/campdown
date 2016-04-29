@@ -1,9 +1,9 @@
 
 import html
 
-from helpers import *
-from track import Track
-from album import Album
+from .helpers import *
+from .track import Track
+from .album import Album
 
 
 class Discography:

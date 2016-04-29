@@ -1,8 +1,8 @@
 
 import html
 
-from helpers import *
-from track import Track
+from .helpers import *
+from .track import Track
 
 import requests
 

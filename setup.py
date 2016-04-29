@@ -12,7 +12,7 @@ setup(
     license='MIT',
     keywords=['bandcamp', 'downloader', 'utility'],
     url='https://github.com/catlinman/campdown/',
-    packages=["campdown"],
+    packages=['campdown'],
     install_requires=['requests', 'mutagen'],
     classifiers=[
         'Environment :: Console',
@@ -27,7 +27,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'campdown=campdown.__main__.main',
+            'campdown=campdown:main',
         ],
     },
 )
