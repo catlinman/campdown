@@ -1,5 +1,6 @@
 *
 !.gitignore
-!campdown.py
 !README.md
 !LICENSE
+!*.py
+!campdown

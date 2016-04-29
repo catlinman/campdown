@@ -27,7 +27,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'campdown=campdown.cli:main',
+            'campdown=campdown:main',
         ],
     },
 )
