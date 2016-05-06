@@ -13,7 +13,11 @@ setup(
     keywords=['bandcamp', 'downloader', 'utility'],
     url='https://github.com/catlinman/campdown/',
     packages=['campdown'],
-    install_requires=['requests', 'mutagen', 'docopt'],
+    install_requires=[
+        'requests >= 2.7.0',
+        'mutagen >= 1.31',
+        'docopt >= 0.6.2'
+    ],
     classifiers=[
         'Environment :: Console',
         'Intended Audience :: Developers',
