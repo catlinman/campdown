@@ -23,6 +23,7 @@ class Track:
         request (request): if supplied this given request's content will be
             analysed instead of making a new request to the mandatory URL.
         album (str): optionally the album this track belongs to.
+        album_artist (str): album artist index
         index (str): optionally the index this track has in the album.
         verbose (bool): sets if status messages and general information
             should be printed. Errors are still printed regardless of this.
@@ -32,7 +33,7 @@ class Track:
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     '''
 
-    def __init__(self, url, output, request=None, album=None, index=None, verbose=False, silent=False, art_enabled=False, id3_enabled=True):
+    def __init__(self, url, output, request=None, album=None, album_artist=None, index=None, verbose=False, silent=False, art_enabled=False, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
@@ -50,6 +51,7 @@ class Track:
         # Album is used to set a fixed album name and to keep name consistency.
         # Index is used to number the track in the filename.
         self.album = album
+        self.album_artist = album_artist
         self.index = index
 
         # Information about the track fetched from Bandcamp in JSON format.
@@ -115,7 +117,7 @@ class Track:
 
         # Get the main artist of the track.
         if not self.artist:
-            self.title = meta.split(" by ", 1)[1].split(", released")[0]
+            self.artist = meta.split(" by ", 1)[1].split(", released")[0]
 
             if self.artist == "Various Artists":
                 self.artist = ""
@@ -216,17 +218,8 @@ class Track:
             except ID3NoHeaderError:
                 tags = ID3()
 
-            # Title and artist tags. Split the title if it contains the artist tag.
-            if " - " in self.title:
-                split_title = str(self.title).split(" - ", 1)
-
-                tags["TPE1"] = TPE1(encoding=3, text=str(split_title[0]))
-                tags["TIT2"] = TIT2(encoding=3, text=str(split_title[1]))
-
-            else:
-                tags["TIT2"] = TIT2(encoding=3, text=str(self.title))
-
-                tags["TPE1"] = TPE1(encoding=3, text=str(self.artist))
+            tags["TIT2"] = TIT2(encoding=3, text=str(self.title))
+            tags["TPE1"] = TPE1(encoding=3, text=str(self.artist))
 
             # Album tag. Make sure we have it.
             if self.album:
@@ -240,8 +233,11 @@ class Track:
             if self.date:
                 tags["TDRC"] = TDRC(encoding=3, text=str(self.date))
 
+            if not self.album_artist:
+                self.album_artist = self.artist
+
             # Album artist
-            tags["TPE2"] = TPE2(encoding=3, text=str(self.artist))
+            tags["TPE2"] = TPE2(encoding=3, text=str(self.album_artist))
 
             # Retrieve the base page URL.
             base_url = "{}//{}".format(str(self.url).split("/")[

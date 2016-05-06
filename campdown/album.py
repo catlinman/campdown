@@ -190,7 +190,7 @@ class Album:
 
             # Create a new track instance with the given URL.
             track = Track(self.base_url + "/track/" + track_name, self.output,
-                          album=self.title, index=track_index, verbose=self.verbose)
+                          album=self.title, album_artist=self.artist, index=track_index, verbose=self.verbose)
 
             # Retrive track data and store it in the instance.
             if track.prepare():
