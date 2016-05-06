@@ -216,18 +216,17 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
 
         return 0
 
-    if not force:
-        if os.path.isfile(os.path.join(output, name)):
-            if os.path.getsize(os.path.join(output, name)) != int(total_length):
-                if verbose:
-                    print(
-                        'File already found but the file size doesn\'t match up. Redownloading.')
+    if not force and os.path.isfile(os.path.join(output, name)):
+        if os.path.getsize(os.path.join(output, name)) != int(total_length):
+            if verbose:
+                print(
+                    'File already found but the file size doesn\'t match up. Redownloading.')
 
-            else:
-                if verbose:
-                    print('File already found. Skipping download.')
+        else:
+            if verbose:
+                print('File already found. Skipping download.')
 
-                return 2
+            return 2
 
     # Open a file stream which will be used to save the output string
     with open(os.path.join(output, safe_filename(name)), "wb") as f:

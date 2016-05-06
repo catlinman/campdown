@@ -93,8 +93,8 @@ class Discography:
         self.base_url = "{}//{}".format(str(self.url).split("/")[
             0], str(self.url).split("/")[2])
 
-        self.artist = html.unescape(string_between(
-            self.content, '<span class="title">', '</span>'))
+        meta = html.unescape(string_between(self.content, '<meta name="Description" content="', ">")).strip()
+        self.artist = meta.split("\n", 1)[0]
 
         if self.artist:
             self.output = os.path.join(self.output, self.artist, "")
@@ -218,7 +218,6 @@ class Discography:
                     safe_print(
                         '\nDownloading track "{}"'.format(self.queue[i].title))
 
-                self.queue[i].fetch()
                 self.queue[i].download()
 
             elif type(self.queue[i]) is Album:

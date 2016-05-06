@@ -113,22 +113,25 @@ class Track:
 
         # Get the title of the track.
         if not self.title:
-            self.title = meta.split(" by ", 1)[0]
+            self.title = html.unescape(string_between(
+                self.content, '<h2 class="trackTitle" itemprop="name">', "</h2>")).strip()
 
         # Get the main artist of the track.
         if not self.artist:
-            self.artist = meta.split(" by ", 1)[1].split(", released")[0]
+            self.artist = html.unescape(string_between(string_between(
+                self.content, '<span itemprop="byArtist">', '/a>'),
+                ">", "<"))
 
             if self.artist == "Various Artists":
                 self.artist = ""
 
             if not self.artist:
-                html.unescape(string_between(
-                    string_between(self.content, "var BandData = {", "}"), 'name : "', '",'))
+                self.artist = html.unescape(string_between(string_between(
+                    self.content, "var BandData = {", "}"), 'name : "', '",'))
 
             if not self.artist:
-                self.artist = html.unescape(string_between(
-                    string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
+                self.artist = html.unescape(string_between(string_between(
+                    self.content, "var BandData = {", "}"), 'name: "', '",'))
 
             if not self.artist:
                 print("\nFailed to prepare the band/artist title")
@@ -218,8 +221,17 @@ class Track:
             except ID3NoHeaderError:
                 tags = ID3()
 
-            tags["TIT2"] = TIT2(encoding=3, text=str(self.title))
-            tags["TPE1"] = TPE1(encoding=3, text=str(self.artist))
+            # Title and artist tags. Split the title if it contains the artist tag.
+            if " - " in self.title:
+                split_title = str(self.title).split(" - ", 1)
+
+                tags["TPE1"] = TPE1(encoding=3, text=str(split_title[0]))
+                tags["TIT2"] = TIT2(encoding=3, text=str(split_title[1]))
+
+            else:
+                tags["TIT2"] = TIT2(encoding=3, text=str(self.title))
+
+                tags["TPE1"] = TPE1(encoding=3, text=str(self.artist))
 
             # Album tag. Make sure we have it.
             if self.album:
@@ -233,10 +245,10 @@ class Track:
             if self.date:
                 tags["TDRC"] = TDRC(encoding=3, text=str(self.date))
 
+            # Album artist
             if not self.album_artist:
                 self.album_artist = self.artist
 
-            # Album artist
             tags["TPE2"] = TPE2(encoding=3, text=str(self.album_artist))
 
             # Retrieve the base page URL.

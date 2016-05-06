@@ -102,10 +102,12 @@ class Album:
 
             return False
 
+        # Get the metadata for the track.
+        meta = html.unescape(string_between(self.content, '<meta name="Description" content="', ">")).strip()
+
         # Get the title of the album.
         if not self.title:
-            self.title = html.unescape(string_between(
-                self.content, '<h2 class="trackTitle" itemprop="name">', "</h2>")).strip()
+            self.title = meta.split(" by ", 1)[0]
 
         # Get the main artist of the album.
         # Find the artist title of the supplied Bandcamp page.
@@ -122,8 +124,8 @@ class Album:
                     self.content, "var BandData = {", "}"), 'name : "', '",'))
 
             if not self.artist:
-                self.artist = html.unescape(string_between(
-                    string_between(self.content, "var BandData = {", "}"), 'name: "', '",'))
+                self.artist = html.unescape(string_between(string_between(
+                    self.content, "var BandData = {", "}"), 'name: "', '",'))
 
             if not self.artist:
                 if not self.silent:
@@ -195,14 +197,14 @@ class Album:
             # Retrive track data and store it in the instance.
             if track.prepare():
                 if self.verbose:
-                    safe_print(track.url)
+                    safe_print("{}.{}".format(i, track.url))
 
                 # Insert the acquired data into the queue.
                 self.queue.insert(i, track)
 
             else:
                 if self.verbose:
-                    safe_print(strike(track.url))
+                    safe_print(strike("{}.{}".format(i, track.url)))
 
     def download(self):
         '''
