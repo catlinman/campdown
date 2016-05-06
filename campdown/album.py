@@ -21,7 +21,7 @@ class Album:
             analysed instead of making a new request to the mandatory URL.
         verbose (bool): sets if status messages and general information
             should be printed. Errors are still printed regardless of this.
-        silent (bool): sets if error messages should not be printed.
+        silent (bool): sets if error messages should be hidden.
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.

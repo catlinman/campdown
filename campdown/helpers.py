@@ -220,7 +220,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
         if os.path.getsize(os.path.join(output, name)) != int(total_length):
             if verbose:
                 print(
-                    'File already found but the file size doesn\'t match up. Redownloading.')
+                    'File already found but the file size does not match up. Redownloading.')
 
         else:
             if verbose:
@@ -265,6 +265,8 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
                         50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
                     sys.stdout.flush()
 
-    print()  # Print a newline to fix formatting after direct stdout.
+    # Print a newline to fix formatting after direct stdout.
+    if verbose:
+        print()
 
     return 1

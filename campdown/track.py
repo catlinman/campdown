@@ -27,7 +27,7 @@ class Track:
         index (str): optionally the index this track has in the album.
         verbose (bool): sets if status messages and general information
             should be printed. Errors are still printed regardless of this.
-        silent (bool): sets if error messages should not be printed.
+        silent (bool): sets if error messages should be hidden.
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
@@ -106,7 +106,8 @@ class Track:
 
         # Verify that this is a track page.
         if not page_type(self.content) == "track":
-            print("The supplied URL is not a track page.")
+            if not self.silent:
+                print("The supplied URL is not a track page.")
 
         # Get the metadata for the track.
         meta = html.unescape(string_between(self.content, '<meta name="Description" content="', ">")).strip()
@@ -266,12 +267,14 @@ class Track:
             s = download_file(self.art_url, self.output,
                               clean_title + self.art_url[-4:])
 
-            if s == 1 and self.verbose:
-                safe_print('\nSaved track art to {}{}{}'.format(
-                    self.output, clean_title, self.art_url[-4:]))
+            if s == 1:
+                if self.verbose:
+                    safe_print('\nSaved track art to {}{}{}'.format(
+                        self.output, clean_title, self.art_url[-4:]))
 
-            elif s == 2 and self.verbose:
-                print('\nArtwork already found.')
+            elif s == 2:
+                if self.verbose:
+                    print('\nArtwork already found.')
 
             elif not self.silent:
                 print('\nFailed to download the artwork. Error code {}'.format(s))

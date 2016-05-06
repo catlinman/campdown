@@ -1,11 +1,29 @@
 
 """Campdown
 Usage:
-  campdown <url> <optional output folder>
+    campdown <url>
+             [--output=dir]
+             [--quiet]
+             [--no-art]
+             [--no-id3]
+
+    campdown (-h | --help)
+    campdown (-v | --version)
+
+Options:
+    -h --help           Show this screen.
+    -v --version        Show version.
+
+    -o --output=<dir>   Output folder to work in.
+    -q --quiet          Should output messages be hidden.
+    --no-art            Sets if artwork downloading should be ignored.
+    --no-id3            Sets if ID3 tagging should be ignored.
 """
 
 import sys
 import os
+
+from docopt import docopt
 
 from .helpers import *
 from .track import Track
@@ -14,31 +32,32 @@ from .discography import Discography
 
 import requests
 
-# Acts as the CLI for the project and main entry point for the command.
-# TODO: Insert extra command line arguments.
-
 
 def cli():
-    try:
-        url = sys.argv[1]
-
-    except(IndexError):
-        print('\nMissing required URL argument')
-        sys.exit(2)
+    # Acts as the CLI for the project and main entry point for the command.
+    args = docopt(__doc__, version='campdown 1.0')
 
     try:
-        out = sys.argv[2]
+        output_dir = args['--output']
 
     except(IndexError):
-        out = ""
+        output_dir = ""
 
-    downloader = Downloader(url, out)
+    downloader = Downloader(
+        args['<url>'],
+        out=output_dir,
+        verbose=(not args['--quiet']),
+        art_enabled=(not args['--no-art']),
+        id3_enabled=(not args['--no-id3'])
+    )
 
     try:
         downloader.run()
 
     except (KeyboardInterrupt):
-        print("\nInterrupt caught. Exiting program...")
+        if not args['--quiet']:
+            print("\nInterrupt caught. Exiting program...")
+
         sys.exit(2)
 
 
@@ -50,13 +69,23 @@ class Downloader:
     Args:
         url (str): Bandcamp URL to analyse and download from.
         out (str): relative or absolute path to write to.
+        verbose (bool): sets if status messages and general information
+            should be printed. Errors are still printed regardless of this.
+        silent (bool): sets if error messages should be hidden.
+        art_enabled (bool): if True the Bandcamp page's artwork will be
+            downloaded and saved alongside each of the found tracks.
+        id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     '''
 
-    def __init__(self, url, out=None):
+    def __init__(self, url, out=None, silent=False, verbose=False, id3_enabled=True, art_enabled=True):
         self.url = url
         self.output = out
+        self.silent = silent
+        self.verbose = verbose
+        self.id3_enabled = id3_enabled
+        self.art_enabled = art_enabled
 
-        # Downloader relevant data.
+        # Variables used during retrieving of information.
         self.request = None
         self.content = None
 
@@ -84,7 +113,9 @@ class Downloader:
         '''
 
         if not valid_url(self.url):
-            print("The supplied URL is not a valid URL.")
+            if not self.silent:
+                print("The supplied URL is not a valid URL.")
+
             return False
 
         # Get the content from the supplied Bandcamp URL.
@@ -92,8 +123,9 @@ class Downloader:
         self.content = self.request.content.decode('utf-8')
 
         if self.request.status_code != 200:
-            print("An error occurred while trying to access your supplied URL. Status code: {}".format(
-                self.request.status_code))
+            if not self.silent:
+                print("An error occurred while trying to access your supplied URL. Status code: {}".format(
+                    self.request.status_code))
 
             return
 
@@ -101,42 +133,68 @@ class Downloader:
         pagetype = page_type(self.content)
 
         if pagetype == "track":
-            print("\nDetected Bandcamp track.")
+            if self.verbose:
+                print("\nDetected Bandcamp track.")
 
-            track = Track(self.url, self.output,
-                          request=self.request, verbose=True, art_enabled=True)
+            track = Track(
+                self.url,
+                self.output,
+                request=self.request,
+                verbose=self.verbose,
+                art_enabled=self.art_enabled,
+                id3_enabled=self.id3_enabled
+            )
 
             if track.prepare():  # Prepare the track by filling out content.
                 track.download()  # Begin the download process.
 
-                print("\nFinished track download. Downloader complete.")
+                if self.verbose:
+                    print("\nFinished track download. Downloader complete.")
 
             else:
-                print(
-                    "\nThe track you are trying to download is not publicly available. Consider purchasing it if you want it.")
+                if self.verbose:
+                    print(
+                        "\nThe track you are trying to download is not publicly available. Consider purchasing it if you want it.")
 
         elif pagetype == "album":
-            print("\nDetected Bandcamp album.")
+            if self.verbose:
+                print("\nDetected Bandcamp album.")
 
-            album = Album(self.url, self.output,
-                          request=self.request, verbose=True, art_enabled=True)
+            album = Album(
+                self.url,
+                self.output,
+                request=self.request,
+                verbose=self.verbose,
+                art_enabled=self.art_enabled,
+                id3_enabled=self.id3_enabled
+            )
 
             if album.prepare():  # Prepare the album with information from the supplied URL.
                 album.fetch()  # Make the album prepare it's tracks.
                 album.download()  # Start the download process.
 
-            print("\nFinished album download. Downloader complete.")
+            if self.verbose:
+                print("\nFinished album download. Downloader complete.")
 
         elif pagetype == "discography":
-            print("\nDetected Bandcamp discography page.")
+            if self.verbose:
+                print("\nDetected Bandcamp discography page.")
 
             page = Discography(
-                self.url, self.output, request=self.request, verbose=True, art_enabled=True)
+                self.url,
+                self.output,
+                request=self.request,
+                verbose=self.verbose,
+                art_enabled=self.art_enabled,
+                id3_enabled=self.id3_enabled
+            )
 
             page.prepare()  # Make discography gather all information it requires.
             page.fetch_download()  # Begin the download process.
 
-            print("\nFinished discography download. Downloader complete.")
+            if self.verbose:
+                print("\nFinished discography download. Downloader complete.")
 
         else:
-            print("Invalid page type. Exiting.")
+            if not self.silent:
+                print("Invalid page type. Exiting.")

@@ -8,13 +8,13 @@ Campdown can be installed allowing you to directly run the `campdown` command. T
 
     $ python3 setup.py install
 
-If you don't want to use the setup but would like to still use the script directly or intend to use it within your project you will have to still install *requests* and *mutagen* which you can download using *pip*.
+If you don't want to use the setup but would like to still use the script directly or intend to use it within your project you will have to still install *requests*, *mutagen* and *docopt* which you can download using *pip*.
 
-    $ pip install requests mutagen
+    $ pip install requests mutagen docopt
 
 To run Campdown simply execute the following command.
 
-    $ campdown <Track, album or discography URL> <Optional output folder location>
+    $ campdown <Track, album or discography URL>
 
 If you want to use the CLI without the setup you can run the *campdown.py* script in the project root directory. Make sure to have dependencies installed beforehand.
 
