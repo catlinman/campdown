@@ -6,7 +6,6 @@ Usage:
              [--quiet]
              [--no-art]
              [--no-id3]
-
     campdown (-h | --help)
     campdown (-v | --version)
 
@@ -18,6 +17,14 @@ Options:
     -q --quiet          Should output messages be hidden.
     --no-art            Sets if artwork downloading should be ignored.
     --no-id3            Sets if ID3 tagging should be ignored.
+
+Description:
+    Command line Bandcamp downloader. Takes in Bandcamp page URLs and fetches
+    tracks, albums as well as their metadata and covers while retaining clean
+    and concise formatting of output information.
+
+Requirements:
+    Python 3.4+, requests, mutagen, docopt
 """
 
 import sys
