@@ -107,7 +107,11 @@ class Album:
 
         # Get the title of the album.
         if not self.title:
-            self.title = meta.split(" by ", 1)[0]
+            if " by " in meta:
+                self.title = meta.split(" by ", 1)[0]
+
+            else:
+                self.title = meta.split(", released", 1)[0].split("\n", 1)[1].strip()
 
         # Get the main artist of the album.
         # Find the artist title of the supplied Bandcamp page.
