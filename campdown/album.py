@@ -201,14 +201,14 @@ class Album:
             # Retrive track data and store it in the instance.
             if track.prepare():
                 if self.verbose:
-                    safe_print("{}.{}".format(i, track.url))
+                    safe_print("{}. {}".format(track_index, track.url))
 
                 # Insert the acquired data into the queue.
-                self.queue.insert(i, track)
+                self.queue.insert(track_index, track)
 
             else:
                 if self.verbose:
-                    safe_print(strike("{}.{}".format(i, track.url)))
+                    safe_print(strike("{}. {}".format(i, track.url)))
 
     def download(self):
         '''

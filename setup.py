@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='campdown',
-    version='1.0',
+    version='1.01',
     author='Catlinman',
     author_email='contact@catlinman.com',
     description=('Bandcamp track and album downloader'),
