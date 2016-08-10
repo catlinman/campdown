@@ -102,23 +102,17 @@ class Album:
 
             return False
 
-        # Get the metadata for the track.
-        meta = html.unescape(string_between(self.content, '<meta name="Description" content="', ">")).strip()
+        # Get the meta information for the track.
+        meta = html.unescape(string_between(self.content, '<meta name="title" content="', '">')).strip()
 
         # Get the title of the album.
         if not self.title:
-            if " by " in meta:
-                self.title = meta.split(" by ", 1)[0]
-
-            else:
-                self.title = meta.split(", released", 1)[0].split("\n", 1)[1].strip()
+            self.title = meta.split(", by ", 1)[0]
 
         # Get the main artist of the album.
         # Find the artist title of the supplied Bandcamp page.
         if not self.artist:
-            self.artist = html.unescape(string_between(string_between(
-                self.content, '<span itemprop="byArtist">', '/a>'),
-                ">", "<"))
+            self.artist = meta.split(", by ", 1)[1]
 
             if self.artist == "Various Artists":
                 self.artist = ""

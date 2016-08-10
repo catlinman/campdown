@@ -110,18 +110,16 @@ class Track:
                 print("The supplied URL is not a track page.")
 
         # Get the metadata for the track.
-        meta = html.unescape(string_between(self.content, '<meta name="Description" content="', ">")).strip()
+        meta = html.unescape(string_between(self.content, '<meta name="title" content="', '">')).strip()
 
         # Get the title of the track.
         if not self.title:
-            self.title = html.unescape(string_between(
-                self.content, '<h2 class="trackTitle" itemprop="name">', "</h2>")).strip()
+            self.title = meta.split(", by ", 1)[0]
 
         # Get the main artist of the track.
         if not self.artist:
-            self.artist = html.unescape(string_between(string_between(
-                self.content, '<span itemprop="byArtist">', '/a>'),
-                ">", "<"))
+            if not self.artist:
+                self.artist = meta.split(", by ", 1)[1]
 
             if self.artist == "Various Artists":
                 self.artist = ""
