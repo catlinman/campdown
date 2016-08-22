@@ -60,7 +60,7 @@ def safe_filename(string):
     string = string.replace('/', '&').replace('\\', '')
 
     if platform.system() is "Windows":
-        string = re.sub('[:*?<>|]', "", string)
+        string = re.sub('[":*?<>|]', "", string)
 
     return string
 
@@ -228,6 +228,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
 
             return 2
 
+    safe_print(name)
     # Open a file stream which will be used to save the output string
     with open(os.path.join(output, safe_filename(name)), "wb") as f:
         # Storage variables used while evaluating the already downloaded data.
