@@ -173,7 +173,7 @@ def page_type(content):
         return "none"
 
 
-def download_file(url, output, name, force=False, verbose=False, silent=False, timeout=1):
+def download_file(url, output, name, force=False, verbose=False, silent=False, sleeptime=1, timeout=3, max_retries=2):
     '''
     Downloads and saves a file from the supplied URL and prints progress
     to the console. Uses ranged requests to make downloads from Bandcamp faster.
@@ -187,7 +187,9 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
         force (bool): ignores checking if the file already exists.
         verbose (bool): prints status messages as well as download progress.
         silent (bool): if error messages should be ignored and not printed.
-        timeout (number): Seconds to sleep between new requests.
+        sleeptime (number): Seconds to sleep between new requests.
+        timeout (number): The maximum time before a request is timed out.
+        max_retries (number): The amount of request retries that should be attempted.
 
     Returns:
         0 if there was an error in this function
@@ -197,7 +199,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
     '''
 
     if verbose:
-        safe_print('\nDownloading: {}'.format(name))
+        safe_print("\nDownloading: {}".format(name))
 
     # Get the size of the remote file through a streamed request.
     r = requests.get(url, stream=True)
@@ -219,16 +221,14 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
     if not force and os.path.isfile(os.path.join(output, name)):
         if os.path.getsize(os.path.join(output, name)) != int(total_length):
             if verbose:
-                print(
-                    'File already found but the file size does not match up. Redownloading.')
+                print("File already found but the file size does not match up. Redownloading.")
 
         else:
             if verbose:
-                print('File already found. Skipping download.')
+                print("File already found. Skipping download.")
 
             return 2
 
-    safe_print(name)
     # Open a file stream which will be used to save the output string
     with open(os.path.join(output, safe_filename(name)), "wb") as f:
         # Storage variables used while evaluating the already downloaded data.
@@ -239,35 +239,61 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, t
 
         time_last = datetime.now()
         for i in range(math.ceil(total_length / 1048576)):
-            # Timeout to avoid spamming requests.
+            # sleeptime to avoid spamming requests.
             time_elapsed = (datetime.now() - time_last).total_seconds()
 
             # Check if enough time has past. Else, sleep until the time is up.
-            if time_elapsed < timeout:
-                time.sleep(timeout - time_elapsed)
+            if time_elapsed < sleeptime:
+                time.sleep(sleeptime - time_elapsed)
 
             # Store the current time for the next loop.
             time_last = datetime.now()
 
-            # Make a ranged request which will be used to stream data from.
-            response = requests.get(url, headers={
-                'Range': 'bytes=' + str(i * 1048576) + "-" + str((i + 1) * (1048576) - 1)}, stream=True)
+            # Status variables.
+            success = False
+            retries = 0
 
-            for chunk in response.iter_content(chunk_size=block_size):
-                # Add the length of the chunk to the download size and
-                # write the chunk to the file.
-                dl += len(chunk)
-                f.write(chunk)
+            while not success and retries < max_retries:
+                try:
+                    # Make a ranged request which will be used to stream data from.
+                    response = requests.get(url, headers={
+                        "Range": "bytes=" + str(i * 1048576) + "-" + str((i + 1) * (1048576) - 1)}, stream=True, timeout=timeout)
 
+                    for chunk in response.iter_content(chunk_size=block_size):
+                        # Add the length of the chunk to the download size and
+                        # write the chunk to the file.
+                        dl += len(chunk)
+                        f.write(chunk)
+
+                        if verbose:
+                            # Display a bar based on the current download progress.
+                            done = int(50 * dl / total_length)
+                            sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ("=" * done, ">", " " * (
+                                50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
+                            sys.stdout.flush()
+
+                        # Request and download was successful.
+                        success = True
+
+                except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
+                    retries += 1
+
+            if not success:
                 if verbose:
-                    # Display a bar based on the current download progress.
-                    done = int(50 * dl / total_length)
-                    sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ('=' * done, ">", ' ' * (
-                        50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
                     sys.stdout.flush()
+                    print("Connection timed out or interrupted.")
+
+                break
 
     # Print a newline to fix formatting after direct stdout.
     if verbose:
-        print()
+        print("")
 
-    return 1
+    if success:
+        return 1
+
+    else:
+        # Remove the possibly partial file and return the correct error code.
+        os.remove(os.path.join(output, safe_filename(name)))
+
+        return 0

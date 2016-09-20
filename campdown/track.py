@@ -206,7 +206,7 @@ class Track:
         s = download_file(self.mp3_url, self.output, clean_title +
                           ".mp3", verbose=self.verbose)
 
-        if s != 1 and s != 2 and not self.silent:
+        if s > 2 and not self.silent:
             print('\nFailed to download the file. Error code {}'.format(s))
 
             return s
