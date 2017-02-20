@@ -173,7 +173,7 @@ def page_type(content):
         return "none"
 
 
-def download_file(url, output, name, force=False, verbose=False, silent=False, sleeptime=1, timeout=3, max_retries=2):
+def download_file(url, output, name, force=False, verbose=False, silent=False, sleeptime=1.5, timeout=3, max_retries=2):
     '''
     Downloads and saves a file from the supplied URL and prints progress
     to the console. Uses ranged requests to make downloads from Bandcamp faster.

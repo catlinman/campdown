@@ -1,8 +1,8 @@
 
 """Campdown
 Usage:
-    campdown <url>
-             [--output=dir]
+    campdown <URL>
+             [--output=DIR]
              [--quiet]
              [--no-art]
              [--no-id3]
@@ -13,7 +13,7 @@ Options:
     -h --help           Show this screen.
     -v --version        Show version.
 
-    -o --output=<dir>   Output folder to work in.
+    -o --output=<DIR>   Output folder to work in.
     -q --quiet          Should output messages be hidden.
     --no-art            Sets if artwork downloading should be ignored.
     --no-id3            Sets if ID3 tagging should be ignored.
