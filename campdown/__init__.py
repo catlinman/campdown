@@ -50,7 +50,7 @@ def cli():
     except(IndexError):
         output_dir = ""
 
-    downloader = Downloader(args['<url>'], out=output_dir, verbose=(not args['--quiet']), art_enabled=(not args['--no-art']), id3_enabled=(not args['--no-id3']))
+    downloader = Downloader(args['<URL>'], out=output_dir, verbose=(not args['--quiet']), art_enabled=(not args['--no-art']), id3_enabled=(not args['--no-id3']))
 
     try:
         downloader.run()
