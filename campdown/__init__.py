@@ -3,6 +3,7 @@
 Usage:
     campdown <URL>
              [--output=DIR]
+             [--range=LENGTH]
              [--quiet]
              [--no-art]
              [--no-id3]
@@ -14,6 +15,7 @@ Options:
     -v --version        Show version.
 
     -o --output=<DIR>   Output folder to work in.
+    -r --range=<LENGTH> Length of ranged requests in bytes.
     -q --quiet          Should output messages be hidden.
     --no-art            Sets if artwork downloading should be ignored.
     --no-id3            Sets if ID3 tagging should be ignored.
@@ -42,7 +44,7 @@ import requests
 
 def cli():
     # Acts as the CLI for the project and main entry point for the command.
-    args = docopt(__doc__, version='campdown 1.1')
+    args = docopt(__doc__, version='campdown 1.2')
 
     try:
         output_dir = args['--output']
@@ -50,7 +52,14 @@ def cli():
     except(IndexError):
         output_dir = ""
 
-    downloader = Downloader(args['<URL>'], out=output_dir, verbose=(not args['--quiet']), art_enabled=(not args['--no-art']), id3_enabled=(not args['--no-id3']))
+    downloader = Downloader(
+        args['<URL>'],
+        out=output_dir,
+        verbose=(not args['--quiet']),
+        range_length=(int(args['--range']) if args['--range'] else 0),
+        art_enabled=(not args['--no-art']),
+        id3_enabled=(not args['--no-id3'])
+    )
 
     try:
         downloader.run()
@@ -73,16 +82,18 @@ class Downloader:
         verbose (bool): sets if status messages and general information
             should be printed. Errors are still printed regardless of this.
         silent (bool): sets if error messages should be hidden.
+        range_length (number): length of ranged requests in bytes.
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     '''
 
-    def __init__(self, url, out=None, silent=False, verbose=False, id3_enabled=True, art_enabled=True):
+    def __init__(self, url, out=None, verbose=False, silent=False, range_length=0, id3_enabled=True, art_enabled=True):
         self.url = url
         self.output = out
         self.silent = silent
         self.verbose = verbose
+        self.range_length = range_length
         self.id3_enabled = id3_enabled
         self.art_enabled = art_enabled
 
@@ -141,7 +152,9 @@ class Downloader:
                 self.url,
                 self.output,
                 request=self.request,
+                silent=self.silent,
                 verbose=self.verbose,
+                range_length=self.range_length,
                 art_enabled=self.art_enabled,
                 id3_enabled=self.id3_enabled
             )
@@ -165,7 +178,9 @@ class Downloader:
                 self.url,
                 self.output,
                 request=self.request,
+                silent=self.silent,
                 verbose=self.verbose,
+                range_length=self.range_length,
                 art_enabled=self.art_enabled,
                 id3_enabled=self.id3_enabled
             )
@@ -185,7 +200,9 @@ class Downloader:
                 self.url,
                 self.output,
                 request=self.request,
+                silent=self.silent,
                 verbose=self.verbose,
+                range_length=self.range_length,
                 art_enabled=self.art_enabled,
                 id3_enabled=self.id3_enabled
             )

@@ -28,12 +28,13 @@ class Track:
         verbose (bool): sets if status messages and general information
             should be printed. Errors are still printed regardless of this.
         silent (bool): sets if error messages should be hidden.
+        range_length (number): length of ranged requests in bytes.
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     '''
 
-    def __init__(self, url, output, request=None, album=None, album_artist=None, index=None, verbose=False, silent=False, art_enabled=False, id3_enabled=True):
+    def __init__(self, url, output, request=None, album=None, album_artist=None, index=None, verbose=False, silent=False, range_length=0, art_enabled=False, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
@@ -69,6 +70,9 @@ class Track:
 
         # Set if error messages should be silenced.
         self.silent = silent
+
+        # Store the length to be used for ranged requests.
+        self.range_length = range_length
 
         # Set if the cover should be downloaded as well.
         # This is disabled for tracks by default.
@@ -203,8 +207,14 @@ class Track:
         )
 
         # Download the file.
-        s = download_file(self.mp3_url, self.output, clean_title +
-                          ".mp3", verbose=self.verbose)
+        s = download_file(
+            self.mp3_url,
+            self.output,
+            clean_title + ".mp3",
+            verbose=self.verbose,
+            silent=self.silent,
+            range_length=self.range_length
+        )
 
         if s > 2 and not self.silent:
             print('\nFailed to download the file. Error code {}'.format(s))

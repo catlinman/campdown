@@ -20,12 +20,13 @@ class Discography:
         verbose (bool): sets if status messages and general information
             should be printed. Errors are still printed regardless of this.
         silent (bool): sets if error messages should be hidden.
+        range_length (number): length of ranged requests in bytes.
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found albums/tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     '''
 
-    def __init__(self, url, output, request=None, verbose=False, silent=False, art_enabled=True, id3_enabled=True):
+    def __init__(self, url, output, request=None, verbose=False, silent=False, range_length=0, art_enabled=True, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
@@ -51,6 +52,9 @@ class Discography:
 
         # Set if error messages should be silenced.
         self.silent = silent
+
+        # Store the length to be used for ranged requests.
+        self.range_length = range_length
 
         # Set if the cover should be downloaded as well.
         self.art_enabled = art_enabled
@@ -136,7 +140,12 @@ class Discography:
 
             # Create a new track instance with the given URL.
             album = Album(self.base_url + "/album/" +
-                          album_name, self.output, verbose=self.verbose)
+                          album_name,
+                          self.output,
+                          verbose=self.verbose,
+                          silent=self.silent,
+                          range_length=self.range_length
+                          )
 
             self.queue.insert(len(self.queue), album)
 

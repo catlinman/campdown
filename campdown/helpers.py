@@ -173,12 +173,12 @@ def page_type(content):
         return "none"
 
 
-def download_file(url, output, name, force=False, verbose=False, silent=False, sleeptime=1.5, timeout=3, max_retries=2):
+def download_file(url, output, name, force=False, verbose=False, silent=False, range_length=0, sleep_time=1.5, timeout=3, max_retries=2):
     '''
     Downloads and saves a file from the supplied URL and prints progress
-    to the console. Uses ranged requests to make downloads from Bandcamp faster.
-    Returns 0 if the download failed, 1 if the download was successful and 2 if
-    the download file was already found and has the same file size.
+    to the console. Can use ranged requests to make downloads from Bandcamp faster
+    in some cases.  Returns 0 if the download failed, 1 if the download was successful
+    and 2 if the download file was already found and has the same file size.
 
     Args:
         url (str): URL to make the request to.
@@ -187,7 +187,8 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
         force (bool): ignores checking if the file already exists.
         verbose (bool): prints status messages as well as download progress.
         silent (bool): if error messages should be ignored and not printed.
-        sleeptime (number): Seconds to sleep between new requests.
+        range_length (number): length of ranged requests in bytes.
+        sleep_time (number): Seconds to sleep between new requests.
         timeout (number): The maximum time before a request is timed out.
         max_retries (number): The amount of request retries that should be attempted.
 
@@ -238,13 +239,18 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
         block_size = 2048
 
         time_last = datetime.now()
-        for i in range(math.ceil(total_length / 1048576)):
-            # sleeptime to avoid spamming requests.
+
+        # Set the length to the total size if range length is zero.
+        if range_length == 0:
+            range_length = total_length
+
+        for i in range(math.ceil(total_length / range_length)):
+            # sleep_time to avoid spamming requests.
             time_elapsed = (datetime.now() - time_last).total_seconds()
 
             # Check if enough time has past. Else, sleep until the time is up.
-            if time_elapsed < sleeptime:
-                time.sleep(sleeptime - time_elapsed)
+            if time_elapsed < sleep_time:
+                time.sleep(sleep_time - time_elapsed)
 
             # Store the current time for the next loop.
             time_last = datetime.now()
@@ -257,7 +263,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
                 try:
                     # Make a ranged request which will be used to stream data from.
                     response = requests.get(url, headers={
-                        "Range": "bytes=" + str(i * 1048576) + "-" + str((i + 1) * (1048576) - 1)}, stream=True, timeout=timeout)
+                        "Range": "bytes=" + str(i * range_length) + "-" + str((i + 1) * (range_length) - 1)}, stream=True, timeout=timeout)
 
                     for chunk in response.iter_content(chunk_size=block_size):
                         # Add the length of the chunk to the download size and
