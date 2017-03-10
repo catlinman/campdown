@@ -173,7 +173,7 @@ def page_type(content):
         return "none"
 
 
-def download_file(url, output, name, force=False, verbose=False, silent=False, range_length=0, sleep_time=1.5, timeout=3, max_retries=2):
+def download_file(url, output, name, force=False, verbose=False, silent=False, range_length=0, sleep_time=3, timeout=3, max_retries=2):
     '''
     Downloads and saves a file from the supplied URL and prints progress
     to the console. Can use ranged requests to make downloads from Bandcamp faster
@@ -187,8 +187,8 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
         force (bool): ignores checking if the file already exists.
         verbose (bool): prints status messages as well as download progress.
         silent (bool): if error messages should be ignored and not printed.
-        range_length (number): length of ranged requests in bytes.
-        sleep_time (number): Seconds to sleep between new requests.
+        range_length (number): DEPRECATED Specify length of requests.
+        sleep_time (number): Seconds to sleep between new requests (Times four for error 503 retries).
         timeout (number): The maximum time before a request is timed out.
         max_retries (number): The amount of request retries that should be attempted.
 
@@ -202,16 +202,31 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
     if verbose:
         safe_print("\nDownloading: {}".format(name))
 
-    # Get the size of the remote file through a streamed request.
-    r = requests.get(url, stream=True)
+    # Status variables.
+    success = False
+    retries = 0
 
-    if r.status_code != 200:
+    # Make a ranged request which will be used to stream data from.
+    response = requests.get(url, stream=True, timeout=timeout)
+
+    if response.status_code == 503:
+        while response.status_code == 503 and retries < max_retries:
+            print("503 Service Unavailable. Attempting {} of max {} retries.".format(retries + 1, max_retries + 1))
+
+            # Sleep for a large amount of time.
+            time.sleep(sleep_time)
+            retries += 1
+
+            # Make a new connection.
+            response = requests.get(url, stream=True, timeout=timeout)
+
+    if response.status_code != 200:
         if not silent:
-            print("Request error {}".format(r.status_code))
+            print("Request error {}".format(response.status_code))
 
-        return r.status_code
+        return response.status_code
 
-    total_length = r.headers.get('content-length')
+    total_length = response.headers.get('content-length')
 
     if total_length is None:
         if not silent:
@@ -240,56 +255,30 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
 
         time_last = datetime.now()
 
-        # Set the length to the total size if range length is zero.
-        if range_length == 0:
-            range_length = total_length
+        try:
+            for chunk in response.iter_content(chunk_size=block_size):
+                # Add the length of the chunk to the download size and
+                # write the chunk to the file.
+                dl += len(chunk)
+                f.write(chunk)
 
-        for i in range(math.ceil(total_length / range_length)):
-            # sleep_time to avoid spamming requests.
-            time_elapsed = (datetime.now() - time_last).total_seconds()
-
-            # Check if enough time has past. Else, sleep until the time is up.
-            if time_elapsed < sleep_time:
-                time.sleep(sleep_time - time_elapsed)
-
-            # Store the current time for the next loop.
-            time_last = datetime.now()
-
-            # Status variables.
-            success = False
-            retries = 0
-
-            while not success and retries < max_retries:
-                try:
-                    # Make a ranged request which will be used to stream data from.
-                    response = requests.get(url, headers={
-                        "Range": "bytes=" + str(i * range_length) + "-" + str((i + 1) * (range_length) - 1)}, stream=True, timeout=timeout)
-
-                    for chunk in response.iter_content(chunk_size=block_size):
-                        # Add the length of the chunk to the download size and
-                        # write the chunk to the file.
-                        dl += len(chunk)
-                        f.write(chunk)
-
-                        if verbose:
-                            # Display a bar based on the current download progress.
-                            done = int(50 * dl / total_length)
-                            sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ("=" * done, ">", " " * (
-                                50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
-                            sys.stdout.flush()
-
-                        # Request and download was successful.
-                        success = True
-
-                except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
-                    retries += 1
-
-            if not success:
                 if verbose:
+                    # Display a bar based on the current download progress.
+                    done = int(50 * dl / total_length)
+                    sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ("=" * done, ">", " " * (
+                        50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
                     sys.stdout.flush()
-                    print("Connection timed out or interrupted.")
 
-                break
+                # Request and download was successful.
+                success = True
+
+        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
+            retries += 1
+
+        if not success:
+            if verbose:
+                sys.stdout.flush()
+                print("Connection timed out or interrupted.")
 
     # Print a newline to fix formatting after direct stdout.
     if verbose:
