@@ -5,6 +5,7 @@ Usage:
              [--output=DIR]
              [--range=LENGTH]
              [--quiet]
+             [--short]
              [--no-art]
              [--no-id3]
     campdown (-h | --help)
@@ -17,6 +18,7 @@ Options:
     -o --output=<DIR>   Output folder to work in.
     -r --range=<LENGTH> Length of ranged requests in bytes.
     -q --quiet          Should output messages be hidden.
+    -s --short          Should the output filenames be kept short.
     --no-art            Sets if artwork downloading should be ignored.
     --no-id3            Sets if ID3 tagging should be ignored.
 
@@ -56,6 +58,7 @@ def cli():
         args['<URL>'],
         out=output_dir,
         verbose=(not args['--quiet']),
+        short=(args['--short']),
         range_length=(int(args['--range']) if args['--range'] else 0),
         art_enabled=(not args['--no-art']),
         id3_enabled=(not args['--no-id3'])
@@ -82,17 +85,19 @@ class Downloader:
         verbose (bool): sets if status messages and general information
             should be printed. Errors are still printed regardless of this.
         silent (bool): sets if error messages should be hidden.
+        short (bool): omits arist and album fields from downloaded track filenames.
         range_length (number): length of ranged requests in bytes.
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     '''
 
-    def __init__(self, url, out=None, verbose=False, silent=False, range_length=0, id3_enabled=True, art_enabled=True):
+    def __init__(self, url, out=None, verbose=False, silent=False, short=False, range_length=0, id3_enabled=True, art_enabled=True):
         self.url = url
         self.output = out
-        self.silent = silent
         self.verbose = verbose
+        self.silent = silent
+        self.short = short
         self.range_length = range_length
         self.id3_enabled = id3_enabled
         self.art_enabled = art_enabled
@@ -152,8 +157,9 @@ class Downloader:
                 self.url,
                 self.output,
                 request=self.request,
-                silent=self.silent,
                 verbose=self.verbose,
+                silent=self.silent,
+                short=self.short,
                 range_length=self.range_length,
                 art_enabled=self.art_enabled,
                 id3_enabled=self.id3_enabled
@@ -178,8 +184,9 @@ class Downloader:
                 self.url,
                 self.output,
                 request=self.request,
-                silent=self.silent,
                 verbose=self.verbose,
+                silent=self.silent,
+                short=self.short,
                 range_length=self.range_length,
                 art_enabled=self.art_enabled,
                 id3_enabled=self.id3_enabled
@@ -200,8 +207,9 @@ class Downloader:
                 self.url,
                 self.output,
                 request=self.request,
-                silent=self.silent,
                 verbose=self.verbose,
+                silent=self.silent,
+                short=self.short,
                 range_length=self.range_length,
                 art_enabled=self.art_enabled,
                 id3_enabled=self.id3_enabled

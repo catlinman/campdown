@@ -130,6 +130,34 @@ def format_information(title, artist, album="", index=0):
                 return "{} - {}".format(artist, title)
 
 
+def short_information(title, index=0):
+    '''
+    Takes in track information and returns everything as a short formatted String.
+
+    Args:
+        title (str): track title string
+        index (str): optional track number string
+
+    Returns:
+        A short formatted string of all track information.
+    '''
+
+    if " - " in title:
+        split_title = str(title).split(" - ", 1)
+
+        if index:
+            return "{} {}".format(index, split_title[1])
+
+        else:
+            return "{}".format(split_title[1])
+    else:
+        if index:
+            return "{} {}".format(index, title)
+
+        else:
+            return title
+
+
 def valid_url(url):
     '''
     Validate a URL and make sure that it has the correct URL syntax.
@@ -211,7 +239,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
 
     if response.status_code == 503:
         while response.status_code == 503 and retries < max_retries:
-            print("503 Service Unavailable. Attempting {} of max {} retries.".format(retries + 1, max_retries + 1))
+            print("503 Service Unavailable. Attempting {} of {} retries.".format(retries + 1, max_retries))
 
             # Sleep for a large amount of time.
             time.sleep(sleep_time)
