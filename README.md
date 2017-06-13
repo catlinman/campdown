@@ -15,7 +15,7 @@ If you don't want to use the setup but would like to still use the script
 directly or intend to use it within your project you will have to still install
 *requests*, *mutagen* and *docopt* which you can download using *pip*.
 
-    $ pip install requests mutagen docopt
+    $ pip install -r requirements.txt
 
 To run Campdown simply execute the following command.
 
