@@ -136,7 +136,7 @@ class Downloader:
             return False
 
         # Get the content from the supplied Bandcamp URL.
-        self.request = requests.get(self.url)
+        self.request = safe_get(self.url)
         self.content = self.request.content.decode('utf-8')
 
         if self.request.status_code != 200:

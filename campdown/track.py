@@ -99,7 +99,7 @@ class Track:
 
         if not self.request:
             # Make a request to the track URL.
-            self.request = requests.get(self.url)
+            self.request = safe_get(self.url)
 
         if self.request.status_code != 200:
             print("An error occurred while trying to access your supplied URL. Status code: {}".format(
