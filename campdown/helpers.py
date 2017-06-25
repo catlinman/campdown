@@ -24,6 +24,21 @@ def strike(string):
     else:
         return "X " + string
 
+def safe_get(url):
+    headers = requests.utils.default_headers()
+
+    headers.update = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
+        "Accept-Encoding": ", ".join(("gzip", "deflate")),
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+    }
+
+    # Make a request to the track URL.
+    r = requests.get(url, headers=headers)
+
+    return r
+
 
 def safe_print(string):
     '''
@@ -234,8 +249,17 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
     success = False
     retries = 0
 
+    headers = requests.utils.default_headers()
+
+    headers.update = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
+        "Accept-Encoding": ", ".join(("gzip", "deflate")),
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+    }
+
     # Make a ranged request which will be used to stream data from.
-    response = requests.get(url, stream=True, timeout=timeout)
+    response = requests.get(url, headers=headers, stream=True, timeout=timeout)
 
     if response.status_code == 503:
         while response.status_code == 503 and retries < max_retries:
@@ -246,7 +270,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
             retries += 1
 
             # Make a new connection.
-            response = requests.get(url, stream=True, timeout=timeout)
+            response = requests.get(url, headers=headers, stream=True, timeout=timeout)
 
     if response.status_code != 200:
         if not silent:
