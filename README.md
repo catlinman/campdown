@@ -5,6 +5,13 @@ Campdown is a utility that can be used to automate downloading of tracks and
 albums from Bandcamp. It requires the Python interpreter, version 3.4+ and is
 not platform specific.
 
+## PyPI ##
+
+Campdown has been added to the Python package index and can now be easily downloaded
+and installed (as well as updated) using the following command.
+
+    $ pip install campdown --upgrade
+
 ## Setup ##
 
 Campdown can be installed allowing you to directly run the `campdown` command.
