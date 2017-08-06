@@ -1,9 +1,9 @@
 
 """Campdown
 Usage:
-    campdown <URL>
-             [--output=DIR]
-             [--range=LENGTH]
+    campdown <url>
+             [--output=PATH]
+             [--range=NUMBER]
              [--quiet]
              [--short]
              [--no-art]
@@ -12,15 +12,16 @@ Usage:
     campdown (-v | --version)
 
 Options:
-    -h --help           Show this screen.
-    -v --version        Show version.
+    -h, --help                      Show this screen.
+    -v, --version                   Show version.
 
-    -o --output=<DIR>   Output folder to work in.
-    -r --range=<LENGTH> Length of ranged requests in bytes.
-    -q --quiet          Should output messages be hidden.
-    -s --short          Should the output filenames be kept short.
-    --no-art            Sets if artwork downloading should be ignored.
-    --no-id3            Sets if ID3 tagging should be ignored.
+    -o=PATH, --output=PATH      Output folder to work in.
+    -r=NUMBER, --range=NUMBER   Length of ranged requests in bytes.
+
+    -q, --quiet                     Should output messages be hidden.
+    -s, --short                     Should the output filenames be kept short.
+    --no-art                        Sets if artwork downloading should be ignored.
+    --no-id3                        Sets if ID3 tagging should be ignored.
 
 Description:
     Command line Bandcamp downloader. Takes in Bandcamp page URLs and fetches
@@ -46,36 +47,36 @@ import requests
 
 def cli():
     # Acts as the CLI for the project and main entry point for the command.
-    args = docopt(__doc__, version='campdown 1.2')
+    args = docopt(__doc__, version="campdown 1.2")
 
     try:
-        output_dir = args['--output']
+        output_dir = args["--output"]
 
     except(IndexError):
         output_dir = ""
 
     downloader = Downloader(
-        args['<URL>'],
+        args["<url>"],
         out=output_dir,
-        verbose=(not args['--quiet']),
-        short=(args['--short']),
-        range_length=(int(args['--range']) if args['--range'] else 0),
-        art_enabled=(not args['--no-art']),
-        id3_enabled=(not args['--no-id3'])
+        verbose=(not args["--quiet"]),
+        short=(args["--short"]),
+        range_length=(int(args["--range"]) if args["--range"] else 0),
+        art_enabled=(not args["--no-art"]),
+        id3_enabled=(not args["--no-id3"])
     )
 
     try:
         downloader.run()
 
     except (KeyboardInterrupt):
-        if not args['--quiet']:
+        if not args["--quiet"]:
             print("\nInterrupt caught. Exiting program...")
 
         sys.exit(2)
 
 
 class Downloader:
-    '''
+    """
     Main class of Campdown. This class handles all other Campdown functions and
     executes them depending on the information it is given during initilzation.
 
@@ -90,7 +91,7 @@ class Downloader:
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
-    '''
+    """
 
     def __init__(self, url, out=None, verbose=False, silent=False, short=False, range_length=0, id3_enabled=True, art_enabled=True):
         self.url = url
@@ -108,9 +109,9 @@ class Downloader:
 
         # Get the script path in case no output path is specified.
         # self.work_path = os.path.join(
-        #     os.path.dirname(os.path.abspath(__file__)), '')
+        #     os.path.dirname(os.path.abspath(__file__)), "")
 
-        self.work_path = os.path.join(os.getcwd(), '')
+        self.work_path = os.path.join(os.getcwd(), "")
 
         if self.output:
             # Make sure that the output folder has the right path syntax
@@ -125,9 +126,9 @@ class Downloader:
             self.output = self.work_path
 
     def run(self):
-        '''
+        """
         Begins downloading the content from the prepared settings.
-        '''
+        """
 
         if not valid_url(self.url):
             if not self.silent:
@@ -137,7 +138,7 @@ class Downloader:
 
         # Get the content from the supplied Bandcamp URL.
         self.request = safe_get(self.url)
-        self.content = self.request.content.decode('utf-8')
+        self.content = self.request.content.decode("utf-8")
 
         if self.request.status_code != 200:
             if not self.silent:

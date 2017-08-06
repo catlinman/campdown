@@ -7,7 +7,7 @@ from .album import Album
 
 
 class Discography:
-    '''
+    """
     Discography class of Campdown. This class takes in a URL and treats it as a
     Bandcamp discography page. Takes over downloading of files as well as
     fetching of general information which can be used by other modules
@@ -25,7 +25,7 @@ class Discography:
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found albums/tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
-    '''
+    """
 
     def __init__(self, url, output, request=None, verbose=False, silent=False, short=False, range_length=0, art_enabled=True, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
@@ -67,12 +67,12 @@ class Discography:
         self.id3_enabled = id3_enabled
 
     def prepare(self):
-        '''
+        """
         Prepares the discography class by gathering information about albums and
         tracks. If no previous request was made and supplied during instantiation
         one will be made at this point. This process does not require making
         requests to the album and track URLs.
-        '''
+        """
 
         if not valid_url(self.url):  # Validate the URL
             print("The supplied URL is not a valid URL.")
@@ -180,12 +180,12 @@ class Discography:
         return True
 
     def fetch(self):
-        '''
+        """
         Tells eachs of the queue's items to fetch their individual information
         from their respective Bandcamp pages. This means that requests are made
         to these pages. Requires the queue to be created by the prepare method
         beforehand.
-        '''
+        """
 
         for i in range(0, len(self.queue)):
             if type(self.queue[i]) is Track:
@@ -196,10 +196,10 @@ class Discography:
                 self.queue[i].fetch()
 
     def download(self):
-        '''
+        """
         Starts the download process for each of the queue's items. This method
         requires the fetch method to be run beforehand.
-        '''
+        """
 
         for i in range(0, len(self.queue)):
             if type(self.queue[i]) is Track:
@@ -217,12 +217,12 @@ class Discography:
                 self.queue[i].download()
 
     def fetch_download(self):
-        '''
+        """
         Starts the download process for each of the queue's items. This method
         is the same as the download and fetch method but chains them together
         to start download files right away instead of preparing them. Good for
         pages with a lot of tracks and albums.
-        '''
+        """
 
         for i in range(0, len(self.queue)):
             if type(self.queue[i]) is Track:

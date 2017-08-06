@@ -10,7 +10,7 @@ from mutagen.id3 import ID3, TIT2, TALB, TPE1, TPE2, COMM, TDRC, TRCK
 
 
 class Track:
-    '''
+    """
     Track class of Campdown. Base class of Campdown. Takes care of downloading of
     information and streaming of file contents. This file directly uses the
     download_file function to get the mp3 file from the supplied URLs data.
@@ -33,7 +33,7 @@ class Track:
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
-    '''
+    """
 
     def __init__(self, url, output, request=None, album=None, album_artist=None, index=None, verbose=False, silent=False, short=False, range_length=0, art_enabled=False, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
@@ -85,13 +85,13 @@ class Track:
         self.id3_enabled = id3_enabled
 
     def prepare(self):
-        '''
+        """
         Prepares the track by gathering information. If no previous request was
         made and supplied during instantiation one will be made at this point.
 
         Returns:
             True if preparation is successful. False if an error occurred.
-        '''
+        """
 
         if not valid_url(self.url):  # Validate the URL
             print("The supplied URL is not a valid URL.")
@@ -193,11 +193,11 @@ class Track:
             return False
 
     def download(self):
-        '''
+        """
         Starts the download process for this track. Also writes the file and
         applies ID3 tags if specified. Requires the track to have been prepared
         by the prepare method beforehand.
-        '''
+        """
 
         if not self.album:
             safe_print('\nWriting file to {}'.format(self.output))

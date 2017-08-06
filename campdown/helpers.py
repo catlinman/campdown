@@ -11,18 +11,19 @@ import requests
 
 
 def strike(string):
-    '''
+    """
     Make a string strikethrough but assure that it can be printed.
 
     Args:
         string (str): string to apply strikethrough to.
-    '''
+    """
 
     if platform.system() is not "Windows":
         return '\u0336'.join(string) + '\u0336'
 
     else:
         return "X " + string
+
 
 def safe_get(url):
     headers = requests.utils.default_headers()
@@ -41,12 +42,12 @@ def safe_get(url):
 
 
 def safe_print(string):
-    '''
+    """
     Print to the console while avoiding encoding errors
 
     Args:
         string (str): string to print to the console without encoding errors.
-    '''
+    """
 
     try:
         print(string)
@@ -62,7 +63,7 @@ def safe_print(string):
 
 
 def safe_filename(string):
-    '''
+    """
     Convert a string into one without illegal characters for the given filesystem.
 
     Args:
@@ -70,7 +71,7 @@ def safe_filename(string):
 
     Returns:
         new path string without illegal characters.
-    '''
+    """
 
     string = string.replace('/', '&').replace('\\', '')
 
@@ -81,7 +82,7 @@ def safe_filename(string):
 
 
 def string_between(string, start, end):
-    '''
+    """
     Returns a new string between the start and end range.
 
     Args:
@@ -91,7 +92,7 @@ def string_between(string, start, end):
 
     Returns:
         new string between start and end.
-    '''
+    """
     try:
         return str(string).split(str(start), 1)[1].split(str(end))[0]
 
@@ -100,7 +101,7 @@ def string_between(string, start, end):
 
 
 def format_information(title, artist, album="", index=0):
-    '''
+    """
     Takes in track information and returns everything as a formatted String.
 
     Args:
@@ -111,7 +112,7 @@ def format_information(title, artist, album="", index=0):
 
     Returns:
         A formatted string of all track information.
-    '''
+    """
 
     if " - " in title:
         split_title = str(title).split(" - ", 1)
@@ -146,7 +147,7 @@ def format_information(title, artist, album="", index=0):
 
 
 def short_information(title, index=0):
-    '''
+    """
     Takes in track information and returns everything as a short formatted String.
 
     Args:
@@ -155,7 +156,7 @@ def short_information(title, index=0):
 
     Returns:
         A short formatted string of all track information.
-    '''
+    """
 
     if " - " in title:
         split_title = str(title).split(" - ", 1)
@@ -174,7 +175,7 @@ def short_information(title, index=0):
 
 
 def valid_url(url):
-    '''
+    """
     Validate a URL and make sure that it has the correct URL syntax.
 
     Args:
@@ -182,7 +183,7 @@ def valid_url(url):
 
     Returns:
         True if the URL is valid. False if it is invalid.
-    '''
+    """
     if "http://" not in url and "https://" not in url:
         return False
 
@@ -190,7 +191,7 @@ def valid_url(url):
 
 
 def page_type(content):
-    '''
+    """
     Evaluate the request content and identify the type of the page.
 
     Args:
@@ -201,7 +202,7 @@ def page_type(content):
         "discography" if a set of albums and tracks was found.
         "track" if the above do not apply but a Bandcamp page was still identified.
         "none" if the supplied page is not a Bandcamp page.
-    '''
+    """
     if "bandcamp.com" in content:
         if "Digital Album" and "track_list" in content:
             return "album"
@@ -217,7 +218,7 @@ def page_type(content):
 
 
 def download_file(url, output, name, force=False, verbose=False, silent=False, range_length=0, sleep_time=3, timeout=3, max_retries=2):
-    '''
+    """
     Downloads and saves a file from the supplied URL and prints progress
     to the console. Can use ranged requests to make downloads from Bandcamp faster
     in some cases.  Returns 0 if the download failed, 1 if the download was successful
@@ -240,7 +241,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
         1 if the download and write is successful
         2 if the file already exists
         r.status_code if a connection error occurred
-    '''
+    """
 
     if verbose:
         safe_print("\nDownloading: {}".format(name))

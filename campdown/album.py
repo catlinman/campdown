@@ -8,7 +8,7 @@ import requests
 
 
 class Album:
-    '''
+    """
     Album class of Campdown. Used by the main downloader as well as the
     discography class. This class takes in a URL and treats it as a Bandcamp
     album page. Takes over downloading of files as well as fetching of general
@@ -27,7 +27,7 @@ class Album:
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
-    '''
+    """
 
     def __init__(self, url, output, request=None, verbose=False, silent=False, short=False, range_length=0, art_enabled=True, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
@@ -71,7 +71,7 @@ class Album:
         self.id3_enabled = id3_enabled
 
     def prepare(self):
-        '''
+        """
         Prepares the album class by gathering information about the album and
         it's tracks. If no previous request was made and supplied during
         instantiation one will be made at this point. This process does not
@@ -79,7 +79,7 @@ class Album:
 
         Returns:
             True if preparation is successful. False if an error occurred.
-        '''
+        """
 
         if not valid_url(self.url):  # Validate the URL
             if not self.silent:
@@ -160,11 +160,11 @@ class Album:
         return True
 
     def fetch(self):
-        '''
+        """
         Gathers required information for the tracks in this album and prepares
         them to be used by the download method. Requests are made to each of the
         tracks' Bandcamp pages. Requires the prepare method to be run beforehand.
-        '''
+        """
 
         # Split the string and convert it into an array.
         tracks = self.content.split(
@@ -220,10 +220,10 @@ class Album:
                     safe_print(strike("{}. {}".format(i, track.url)))
 
     def download(self):
-        '''
+        """
         Starts the download process for each of the queue's items. This method
         requires the fetch method to be run beforehand.
-        '''
+        """
 
         if self.verbose:
             safe_print('\nWriting album to {}'.format(self.output))
