@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="campdown",
-    version="1.3",
+    version="1.31",
     author="Catlinman",
     author_email="contact@catlinman.com",
     description=("Bandcamp track and album downloader"),
