@@ -102,7 +102,7 @@ class Discography:
             0], str(self.url).split("/")[2])
 
         meta = html.unescape(string_between(self.content, '<meta name="Description" content="', ">")).strip()
-        self.artist = meta.split("\n", 1)[0]
+        self.artist = meta.split(".\n", 1)[0]
 
         if self.artist:
             self.output = os.path.join(self.output, self.artist, "")
@@ -143,14 +143,14 @@ class Discography:
                 safe_print(self.base_url + "/album/" + album_name)
 
             # Create a new track instance with the given URL.
-            album = Album(self.base_url + "/album/" +
-                          album_name,
-                          self.output,
-                          verbose=self.verbose,
-                          silent=self.silent,
-                          short=self.short,
-                          range_length=self.range_length
-                          )
+            album = Album(
+                self.base_url + "/album/" + album_name,
+                self.output,
+                verbose=self.verbose,
+                silent=self.silent,
+                short=self.short,
+                range_length=self.range_length
+            )
 
             self.queue.insert(len(self.queue), album)
 
@@ -169,8 +169,12 @@ class Discography:
                     safe_print(self.base_url + "/track/" + track_name)
 
                 # Create a new track instance with the given URL.
-                track = Track(self.base_url + "/track/" +
-                              track_name, self.output, verbose=self.verbose, art_enabled=True)
+                track = Track(
+                    self.base_url + "/track/" + track_name,
+                    self.output,
+                    verbose=self.verbose,
+                    art_enabled=True
+                )
 
                 self.queue.insert(len(self.queue), track)
 
