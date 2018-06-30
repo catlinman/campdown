@@ -47,7 +47,7 @@ import requests
 
 def cli():
     # Acts as the CLI for the project and main entry point for the command.
-    args = docopt(__doc__, version="campdown 1.31")
+    args = docopt(__doc__, version="campdown 1.32")
 
     try:
         output_dir = args["--output"]

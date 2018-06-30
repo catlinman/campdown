@@ -29,7 +29,7 @@ def safe_get(url):
     headers = requests.utils.default_headers()
 
     headers.update = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
+        "User-Agent": "campdown/1.2 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
@@ -259,19 +259,21 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
         "Connection": "keep-alive",
     }
 
-    # Make a ranged request which will be used to stream data from.
-    response = requests.get(url, headers=headers, stream=True, timeout=timeout)
+    # Initilize our response variable.
+    response = None 
 
-    if response.status_code == 503:
-        while response.status_code == 503 and retries < max_retries:
+    # Make a ranged request which will be used to stream data from.
+    while not response and retries < max_retries:
+        try:
+            response = requests.get(url, headers=headers, stream=True, timeout=timeout)
+
+        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
+            # Print a status message for this sort of timeout error.
             print("503 Service Unavailable. Attempting {} of {} retries.".format(retries + 1, max_retries))
 
             # Sleep for a large amount of time.
             time.sleep(sleep_time)
             retries += 1
-
-            # Make a new connection.
-            response = requests.get(url, headers=headers, stream=True, timeout=timeout)
 
     if response.status_code != 200:
         if not silent:
