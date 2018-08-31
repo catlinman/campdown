@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="campdown",
-    version="1.33",
+    version="1.4",
     author="Catlinman",
     author_email="contact@catlinman.com",
     description=("Bandcamp track and album downloader"),
@@ -13,8 +13,8 @@ setup(
     url="https://github.com/catlinman/campdown/",
     packages=["campdown"],
     install_requires=[
-        "requests >= 2.18.1",
-        "mutagen >= 1.38",
+        "requests >= 2.19.1",
+        "mutagen >= 1.41.1",
         "docopt >= 0.6.2"
     ],
     classifiers=[
