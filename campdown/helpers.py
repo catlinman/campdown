@@ -252,7 +252,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
     headers = requests.utils.default_headers()
 
     headers.update = {
-        "User-Agent": "campdown/1.5 (+https://github.com/catlinman/campdown)",
+        "User-Agent": "campdown/1.41 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
