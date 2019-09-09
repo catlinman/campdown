@@ -3,7 +3,7 @@
 Usage:
     campdown <url>
              [--output=PATH]
-             [--range=NUMBER]
+             [--sleep=NUMBER]
              [--quiet]
              [--short]
              [--no-art]
@@ -15,8 +15,8 @@ Options:
     -h, --help                      Show this screen.
     -v, --version                   Show version.
 
-    -o=PATH, --output=PATH      Output folder to work in.
-    -r=NUMBER, --range=NUMBER   Length of ranged requests in bytes.
+    -o=PATH, --output=PATH          Output folder to work in.
+    -t=NUMBER, --sleep=NUMBER       Connection timeout duration.
 
     -q, --quiet                     Should output messages be hidden.
     -s, --short                     Should the output filenames be kept short.
@@ -47,7 +47,7 @@ import requests
 
 def cli():
     # Acts as the CLI for the project and main entry point for the command.
-    args = docopt(__doc__, version="campdown 1.4")
+    args = docopt(__doc__, version="campdown 1.5")
 
     try:
         output_dir = args["--output"]
@@ -60,7 +60,7 @@ def cli():
         out=output_dir,
         verbose=(not args["--quiet"]),
         short=(args["--short"]),
-        range_length=(int(args["--range"]) if args["--range"] else 0),
+        sleep=(int(args["--sleep"]) if args["--sleep"] else 30),
         art_enabled=(not args["--no-art"]),
         id3_enabled=(not args["--no-id3"])
     )
@@ -87,19 +87,19 @@ class Downloader:
             should be printed. Errors are still printed regardless of this.
         silent (bool): sets if error messages should be hidden.
         short (bool): omits arist and album fields from downloaded track filenames.
-        range_length (number): length of ranged requests in bytes.
+        sleep (number): duration between failed requests to wait for.
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     """
 
-    def __init__(self, url, out=None, verbose=False, silent=False, short=False, range_length=0, id3_enabled=True, art_enabled=True):
+    def __init__(self, url, out=None, verbose=False, silent=False, short=False, sleep=30, id3_enabled=True, art_enabled=True):
         self.url = url
         self.output = out
         self.verbose = verbose
         self.silent = silent
         self.short = short
-        self.range_length = range_length
+        self.sleep = sleep
         self.id3_enabled = id3_enabled
         self.art_enabled = art_enabled
 
@@ -161,7 +161,7 @@ class Downloader:
                 verbose=self.verbose,
                 silent=self.silent,
                 short=self.short,
-                range_length=self.range_length,
+                sleep=self.sleep,
                 art_enabled=self.art_enabled,
                 id3_enabled=self.id3_enabled
             )
@@ -188,7 +188,7 @@ class Downloader:
                 verbose=self.verbose,
                 silent=self.silent,
                 short=self.short,
-                range_length=self.range_length,
+                sleep=self.sleep,
                 art_enabled=self.art_enabled,
                 id3_enabled=self.id3_enabled
             )
@@ -211,7 +211,7 @@ class Downloader:
                 verbose=self.verbose,
                 silent=self.silent,
                 short=self.short,
-                range_length=self.range_length,
+                sleep=self.sleep,
                 art_enabled=self.art_enabled,
                 id3_enabled=self.id3_enabled
             )

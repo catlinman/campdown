@@ -217,7 +217,7 @@ def page_type(content):
         return "none"
 
 
-def download_file(url, output, name, force=False, verbose=False, silent=False, range_length=0, sleep_time=3, timeout=3, max_retries=2):
+def download_file(url, output, name, force=False, verbose=False, silent=False, sleep=30, timeout=3, max_retries=2):
     """
     Downloads and saves a file from the supplied URL and prints progress
     to the console. Can use ranged requests to make downloads from Bandcamp faster
@@ -231,8 +231,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
         force (bool): ignores checking if the file already exists.
         verbose (bool): prints status messages as well as download progress.
         silent (bool): if error messages should be ignored and not printed.
-        range_length (number): DEPRECATED Specify length of requests.
-        sleep_time (number): Seconds to sleep between new requests (Times four for error 503 retries).
+        sleep (number): Seconds to sleep between failed requests.
         timeout (number): The maximum time before a request is timed out.
         max_retries (number): The amount of request retries that should be attempted.
 
@@ -253,14 +252,14 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
     headers = requests.utils.default_headers()
 
     headers.update = {
-        "User-Agent": "campdown/1.32 (+https://github.com/catlinman/campdown)",
+        "User-Agent": "campdown/1.5 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
     }
 
     # Initilize our response variable.
-    response = None 
+    response = None
 
     # Make a ranged request which will be used to stream data from.
     while not response and retries < max_retries:
@@ -270,12 +269,13 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, r
         except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
             # Print a status message for this sort of timeout error.
             print("503 Service Unavailable. Attempting {} of {} retries.".format(retries + 1, max_retries))
+            print("Waiting for {} seconds ...".format(sleep))
 
             # Sleep for a large amount of time.
-            time.sleep(sleep_time)
+            time.sleep(sleep)
             retries += 1
 
-    if response.status_code != 200:
+    if response and response.status_code != 200:
         if not silent:
             print("Request error {}".format(response.status_code))
 

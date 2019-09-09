@@ -23,13 +23,13 @@ class Album:
             should be printed. Errors are still printed regardless of this.
         silent (bool): sets if error messages should be hidden.
         short (bool): omits arist and album fields from downloaded track filenames.
-        range_length (number): length of ranged requests in bytes.
+        sleep (number): timeout duration between failed requests in seconds.
         art_enabled (bool): if True the Bandcamp page's artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     """
 
-    def __init__(self, url, output, request=None, verbose=False, silent=False, short=False, range_length=0, art_enabled=True, id3_enabled=True):
+    def __init__(self, url, output, request=None, verbose=False, silent=False, short=False, sleep=30, art_enabled=True, id3_enabled=True):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
@@ -60,8 +60,8 @@ class Album:
         # Set if the filename should be kept short.
         self.short = short
 
-        # Store the length to be used for ranged requests.
-        self.range_length = range_length
+        # Store the timeout duration between failed requests.
+        self.sleep = sleep
 
         # Set if the cover should be downloaded as well.
         # This is active for albums by default.
@@ -204,7 +204,7 @@ class Album:
                           verbose=self.verbose,
                           silent=self.silent,
                           short=self.short,
-                          range_length=self.range_length
+                          sleep=self.sleep
                           )
 
             # Retrive track data and store it in the instance.
