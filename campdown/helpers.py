@@ -5,6 +5,7 @@ import re
 import math
 import platform
 import time
+
 from datetime import datetime
 
 import requests
@@ -252,7 +253,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
     headers = requests.utils.default_headers()
 
     headers.update = {
-        "User-Agent": "campdown/1.41 (+https://github.com/catlinman/campdown)",
+        "User-Agent": "campdown/1.42 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
@@ -275,24 +276,40 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
             time.sleep(sleep)
             retries += 1
 
+    # Verify that our response data exists and has a valid status code.
     if response and response.status_code != 200:
         if not silent:
             print("Request error {}".format(response.status_code))
 
         return response.status_code
 
-    total_length = response.headers.get('content-length')
+    # Get the total length of our remote content. Used for verification and progress calculation. 
+    remote_length = response.headers.get('content-length')
 
-    if total_length is None:
+    # Fail out if we can't get the data length.
+    if remote_length is None:
         if not silent:
             print("Request does not contain an entry for the content length.")
 
         return 0
 
+    # Convert our raw length to an integer value for further processing.
+    remote_length = int(remote_length)
+
+    # This value represents how much as a margin percentage of the local file size
+    # can the local file can differ from the remote one before being discarded.
+    confidence_percentage = 0.01
+
     if not force and os.path.isfile(os.path.join(output, name)):
-        if os.path.getsize(os.path.join(output, name)) != int(total_length):
+        local_length = os.path.getsize(os.path.join(output, name))
+
+        # Confidence is negative if we're lacking data greater than our margin.
+        confidence = -(remote_length - (local_length + (remote_length * confidence_percentage)))
+
+        # If we have less data than our confidence percentage we re-download our file.
+        if confidence < 0:
             if verbose:
-                print("File already found but the file size does not match up. Redownloading.")
+                print("File already found but the file size does not match up. Re-downloading.")
 
         else:
             if verbose:
@@ -300,49 +317,104 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
 
             return 2
 
-    # Open a file stream which will be used to save the output string
-    with open(os.path.join(output, safe_filename(name)), "wb") as f:
-        # Storage variables used while evaluating the already downloaded data.
-        dl = 0
-        total_length = int(total_length)
-        cleaned_length = int((total_length * 100) / pow(1024, 2)) / 100
-        block_size = 2048
+    # Reset retries for the new process of iterating content.
+    retries = 0
 
-        time_last = datetime.now()
+    while not success and retries < max_retries:
+        # Open a file stream which will be used to save the output string
+        with open(os.path.join(output, safe_filename(name)), "wb") as f:
+            # Storage variables used while evaluating the already downloaded data.
+            dl = 0
+            cleaned_length = int((remote_length * 100) / pow(1024, 2)) / 100
+            block_size = 2048
 
-        try:
-            for chunk in response.iter_content(chunk_size=block_size):
-                # Add the length of the chunk to the download size and
-                # write the chunk to the file.
-                dl += len(chunk)
-                f.write(chunk)
+            time_last = datetime.now()
 
-                if verbose:
-                    # Display a bar based on the current download progress.
-                    done = int(50 * dl / total_length)
-                    sys.stdout.write("\r[%s%s%s] %sMB / %sMB " % ("=" * done, ">", " " * (
-                        50 - done), (int(((dl) * 100) / pow(1024, 2)) / 100), cleaned_length))
-                    sys.stdout.flush()
+            try:
+                for chunk in response.iter_content(chunk_size=block_size):
+                    # Add the length of the chunk to the download size and
+                    # write the chunk to the file.
+                    dl += len(chunk)
+                    f.write(chunk)
 
-                # Request and download was successful.
-                success = True
+                    if verbose:
+                        # Calculate the the download completion percentage.
+                        done = int(50 * dl / remote_length)
 
-        except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
-            retries += 1
+                        # Display a bar based on the current download progress.
+                        sys.stdout.write(
+                            "\r[{}{}{}] {}MB / {}MB ".format(
+                                "=" * done,
+                                ">",
+                                " " * (50 - done),
+                                (int(((dl) * 100) / pow(1024, 2)) / 100),
+                                cleaned_length
+                            )
+                        )
 
-        if not success:
-            if verbose:
-                sys.stdout.flush()
-                print("Connection timed out or interrupted.")
+                        # Flush the output buffer so we can overwrite the same line.
+                        sys.stdout.flush()
 
-    # Print a newline to fix formatting after direct stdout.
-    if verbose:
-        print("")
+                # Verify our download size for completion. Since the file sizes will
+                # not entirely match up because of possible ID3 tag differences or
+                # additional headers, pass a margin/percentage confidence check instead.
+                local_length = os.path.getsize(f.name)
+
+                # Confidence is negative if we're lacking data greater than our margin.
+                confidence = -(remote_length - (local_length + (remote_length * confidence_percentage)))
+
+                # Debug lines to help us possibly identify size differential issues.
+                # print(
+                #     "\nRemote size: {} | Local size: {} | Confidence margin percentage: {:.2%} | Confidence: {}".format(
+                #         remote_length,
+                #         local_length,
+                #         confidence_percentage,
+                #         int(-confidence)
+                #     )
+                # )
+
+                if confidence < 0:
+                    # Print a newline to skip the buffer flush.
+                    print("")
+
+                    # Print a status message to inform the user of incomplete data.
+                    print("The download didn't complete. Attempting {} of {} retries.".format(retries + 1, max_retries))
+                    print("Waiting for {} seconds ...".format(sleep))
+
+                    # Sleep for a large amount of time.
+                    time.sleep(sleep)
+                    retries += 1
+
+                else:
+                    # Request and download was successful.
+                    success = True
+
+            except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
+                # Print a newline to skip the buffer flush.
+                print("")
+
+                # Print a status message for this sort of timeout error.
+                print("503 Service Unavailable. Attempting {} of {} retries.".format(retries + 1, max_retries))
+                print("Waiting for {} seconds ...".format(sleep))
+
+                # Sleep for a large amount of time.
+                time.sleep(sleep)
+                retries += 1
 
     if success:
+        if verbose:
+            # Print a newline to skip the buffer flush.
+            print("")
+            
         return 1
 
     else:
+        if verbose:
+            # Print a newline to skip the buffer flush.
+            print("")
+
+            print("Connection timed out or interrupted.")
+
         # Remove the possibly partial file and return the correct error code.
         os.remove(os.path.join(output, safe_filename(name)))
 
