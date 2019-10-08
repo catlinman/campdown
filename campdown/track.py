@@ -229,7 +229,7 @@ class Track:
 
         # Abort further processes if we receive an error status code.
         if not status or status > 2:
-            if not self.silent
+            if not self.silent:
                 print('\nFailed to download the file. Error code {}'.format(status))
 
             return status
