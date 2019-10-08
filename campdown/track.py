@@ -20,7 +20,7 @@ class Track:
     Args:
         url (str): Bandcamp URL to analyse and download from.
         output (str): relative or absolute path to write to.
-        request (request): if supplied this given request's content will be
+        request (request): if supplied this given request'status content will be
             analysed instead of making a new request to the mandatory URL.
         album (str): optionally the album this track belongs to.
         album_artist (str): album artist index
@@ -30,7 +30,7 @@ class Track:
         silent (bool): sets if error messages should be hidden.
         short (bool): omits arist and album fields from downloaded track filenames.
         sleep (number): timeout duration between failed requests in seconds.
-        art_enabled (bool): if True the Bandcamp page's artwork will be
+        art_enabled (bool): if True the Bandcamp page'status artwork will be
             downloaded and saved alongside each of the found tracks.
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     """
@@ -218,7 +218,7 @@ class Track:
             )
 
         # Download the file.
-        s = download_file(
+        status = download_file(
             self.mp3_url,
             self.output,
             clean_title + ".mp3",
@@ -227,10 +227,12 @@ class Track:
             sleep=self.sleep
         )
 
-        if s > 2 and not self.silent:
-            print('\nFailed to download the file. Error code {}'.format(s))
+        # Abort further processes if we receive an error status code.
+        if not status or status > 2:
+            if not self.silent
+                print('\nFailed to download the file. Error code {}'.format(status))
 
-            return s
+            return status
 
         # Write ID3 tags if the id3_enabled is true.
         if self.id3_enabled:
@@ -283,17 +285,17 @@ class Track:
 
         # Download artwork if it is enabled.
         if self.art_enabled:
-            s = download_file(self.art_url, self.output,
+            status = download_file(self.art_url, self.output,
                               clean_title + self.art_url[-4:])
 
-            if s == 1:
+            if status == 1:
                 if self.verbose:
                     safe_print('\nSaved track art to {}{}{}'.format(
                         self.output, clean_title, self.art_url[-4:]))
 
-            elif s == 2:
+            elif status == 2:
                 if self.verbose:
                     print('\nArtwork already found.')
 
             elif not self.silent:
-                print('\nFailed to download the artwork. Error code {}'.format(s))
+                print('\nFailed to download the artwork. Error code {}'.format(status))
