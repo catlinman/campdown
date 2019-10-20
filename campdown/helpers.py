@@ -30,7 +30,7 @@ def safe_get(url):
     headers = requests.utils.default_headers()
 
     headers.update = {
-        "User-Agent": "campdown/1.45 (+https://github.com/catlinman/campdown)",
+        "User-Agent": "campdown/1.46 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
@@ -217,6 +217,22 @@ def page_type(content):
     else:
         return "none"
 
+def find_string_indices(content, search):
+    """
+    Generate a list that contains all the indices of a string occurrences in another.
+
+    Args:
+        content (str): string to search within.
+        search (str): string to find occurrences of.
+
+    Returns:
+        List containing all found indicies after the search string.
+    """
+    return [ # Use list comprehension for syntactic diabetes.
+        # Add the length of the search to the index like before.
+        i + len(search) for i in range(len(content))
+            if content.startswith(search, i)
+    ]
 
 def download_file(url, output, name, force=False, verbose=False, silent=False, sleep=30, timeout=3, max_retries=2):
     """
@@ -253,7 +269,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
     headers = requests.utils.default_headers()
 
     headers.update = {
-        "User-Agent": "campdown/1.45 (+https://github.com/catlinman/campdown)",
+        "User-Agent": "campdown/1.46 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",

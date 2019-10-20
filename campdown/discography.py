@@ -117,20 +117,35 @@ class Discography:
         # Make the artist name safe for file writing.
         self.artist = safe_filename(self.artist)
 
-        tracks = [i for i in range(
-            len(self.content)) if self.content.startswith('<a href="/track/', i)]
+        # Define search markers to find the index of for track URLs.
+        track_search_markers = [
+            '<a href="/track/',
+            '<a href="{}/track/'.format(self.base_url)
+        ]
 
-        albums = [i for i in range(
-            len(self.content)) if self.content.startswith('<a href="/album/', i)]
+        # Create a list of indices for track links.
+        tracks = []
+        for marker in track_search_markers:
+            tracks.extend(find_string_indices(self.content, marker))
+
+        # Define search markers to find the index of for album URLs.
+        album_search_markers = [
+            '<a href="/album/',
+            '<a href="{}/album/'.format(self.base_url)
+        ]
+
+        # Create a list of indices for album links.
+        albums = []
+        for marker in album_search_markers:
+            albums.extend(find_string_indices(self.content, marker))
 
         if self.verbose:
             print('\nListing found discography content')
 
         for i, position in enumerate(albums):
-            position += 16  # Add the length of the search string.
-
             album_name = ""
 
+            # Begin iteration over characters until the string closes.
             while self.content[position] != '"':
                 album_name += self.content[position]
                 position += 1
@@ -155,10 +170,9 @@ class Discography:
             self.queue.insert(len(self.queue), album)
 
         for i, position in enumerate(tracks):
-            position += 16  # Add the length of the search string.
-
             track_name = ""
 
+            # Begin iteration over characters until the string closes.
             while self.content[position] != '"':
                 track_name += self.content[position]
                 position += 1

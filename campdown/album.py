@@ -178,13 +178,20 @@ class Album:
         track_index = 0
 
         for i, track in enumerate(tracks):
-            position = track.find('<a href="/track/')
+            # Define a search marker.
+            search_marker = '<a href="/track/'
 
+            # Get the position of the URL via the marker.
+            position = track.find(search_marker)
+
+            # Skip if not found.
             if position == -1:
                 continue
 
+            # Add the length of the marker after which to seek from.
+            position += len(search_marker)
+
             # Find the track's name.
-            position += 16
             track_name = ""
 
             while track[position] != '"':
@@ -197,17 +204,19 @@ class Album:
             track_index += 1
 
             # Create a new track instance with the given URL.
-            track = Track(self.base_url + "/track/" + track_name, self.output,
-                          album=self.title,
-                          album_artist=self.artist,
-                          index=track_index,
-                          verbose=self.verbose,
-                          silent=self.silent,
-                          short=self.short,
-                          sleep=self.sleep
-                          )
+            track = Track(
+                "{}/track/{}".format(self.base_url, track_name),
+                self.output,
+                album=self.title,
+                album_artist=self.artist,
+                index=track_index,
+                verbose=self.verbose,
+                silent=self.silent,
+                short=self.short,
+                sleep=self.sleep
+            )
 
-            # Retrive track data and store it in the instance.
+            # Retrieve track data and store it in the instance.
             if track.prepare():
                 if self.verbose:
                     safe_print("{}. {}".format(track_index, track.url))
