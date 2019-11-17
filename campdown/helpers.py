@@ -19,7 +19,7 @@ def strike(string):
         string (str): string to apply strikethrough to.
     """
 
-    if platform.system() is not "Windows":
+    if platform.system() != "Windows":
         return '\u0336'.join(string) + '\u0336'
 
     else:
@@ -76,7 +76,7 @@ def safe_filename(string):
 
     string = string.replace('/', '&').replace('\\', '')
 
-    if platform.system() is "Windows":
+    if platform.system() == "Windows":
         string = re.sub('[":*?<>|]', "", string)
 
     return string
