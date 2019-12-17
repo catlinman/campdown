@@ -29,7 +29,7 @@ class Album:
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     """
 
-    def __init__(self, url, output, request=None, verbose=False, silent=False, short=False, sleep=30, art_enabled=True, id3_enabled=True):
+    def __init__(self, url, output, request=None, verbose=False, silent=False, short=False, sleep=30, art_enabled=True, id3_enabled=True, abort_missing=False):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
@@ -69,6 +69,9 @@ class Album:
 
         # Set if ID3 tags should be written to the output file.
         self.id3_enabled = id3_enabled
+
+        # Sets if a missing album track aborts the entire album download.
+        self.abort_missing = abort_missing
 
     def prepare(self):
         """
@@ -145,10 +148,6 @@ class Album:
         self.output = os.path.join(
             self.output, self.artist + " - " + self.title, "")
 
-        # Create a new album folder if it doesn't already exist.
-        if not os.path.exists(self.output):
-            os.makedirs(self.output)
-
         # Retrieve the base page URL.
         self.base_url = "{}//{}".format(str(self.url).split("/")[
             0], str(self.url).split("/")[2])
@@ -164,6 +163,10 @@ class Album:
         Gathers required information for the tracks in this album and prepares
         them to be used by the download method. Requests are made to each of the
         tracks' Bandcamp pages. Requires the prepare method to be run beforehand.
+
+        Returns:
+            True if all fetches were successful. False if missing flag was set
+            and a track was unable to be fetched.
         """
 
         # Split the string and convert it into an array.
@@ -173,7 +176,7 @@ class Album:
         # Iterate over the tracks found and begin traversing the given
         # track's title information and insert the track data in the queue.
         if self.verbose:
-            print('\nListing found tracks')
+            safe_print('\n{} - {}'.format(self.artist, self.title))
 
         track_index = 0
 
@@ -213,7 +216,8 @@ class Album:
                 verbose=self.verbose,
                 silent=self.silent,
                 short=self.short,
-                sleep=self.sleep
+                sleep=self.sleep,
+                id3_enabled=self.id3_enabled
             )
 
             # Retrieve track data and store it in the instance.
@@ -227,6 +231,18 @@ class Album:
             else:
                 if self.verbose:
                     safe_print(strike("{}. {}".format(i, track.url)))
+
+                if self.abort_missing:
+                    if self.verbose:
+                        safe_print("Abort missing: A track fetch failed - skipping album download.")
+
+                    return False
+
+        # If everything fetched: Create a new album folder if it doesn't already exist.
+        if not os.path.exists(self.output):
+            os.makedirs(self.output)
+
+        return True
 
     def download(self):
         """

@@ -2,11 +2,8 @@
 import os
 import sys
 import re
-import math
 import platform
 import time
-
-from datetime import datetime
 
 import requests
 
@@ -30,7 +27,7 @@ def safe_get(url):
     headers = requests.utils.default_headers()
 
     headers.update = {
-        "User-Agent": "campdown/1.46 (+https://github.com/catlinman/campdown)",
+        "User-Agent": "campdown/1.47 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
@@ -217,6 +214,7 @@ def page_type(content):
     else:
         return "none"
 
+
 def find_string_indices(content, search):
     """
     Generate a list that contains all the indices of a string occurrences in another.
@@ -228,11 +226,41 @@ def find_string_indices(content, search):
     Returns:
         List containing all found indicies after the search string.
     """
-    return [ # Use list comprehension for syntactic diabetes.
+    return [  # Use list comprehension for syntactic diabetes.
         # Add the length of the search to the index like before.
-        i + len(search) for i in range(len(content))
-            if content.startswith(search, i)
+        i for i in range(len(content))
+        if content.startswith(search, i)
     ]
+
+
+def calculate_confidence(inspected, expected, percentage):
+    """
+    Generate a confidence value possibly confirming or denying data parity.
+
+    A positive return value indicates the amount of bytes past the confidence
+    interval. A negative value indicates the missing amount required to pass.
+
+    Args:
+        inspected (number): value to calculate the percentage of compared to the expected value.
+        expected (number): value that should be confirmed against.
+        percentage (number): percentage amount that can be ignored and is still confident.
+
+    Returns:
+        Calculated confidence total value.
+    """
+
+    # Debug lines to help us possibly identify size differential issues.
+    # print(
+    #     "\nExpected size: {} | Inspected size: {} | Confidence margin percentage: {:.2%} | Confidence: {}".format(
+    #         expected,
+    #         inspected,
+    #         percentage,
+    #         int(-(expected - (inspected + (expected * percentage))))
+    #     )
+    # )
+
+    return -(expected - (inspected + (expected * percentage)))
+
 
 def download_file(url, output, name, force=False, verbose=False, silent=False, sleep=30, timeout=3, max_retries=2):
     """
@@ -269,7 +297,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
     headers = requests.utils.default_headers()
 
     headers.update = {
-        "User-Agent": "campdown/1.46 (+https://github.com/catlinman/campdown)",
+        "User-Agent": "campdown/1.47 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
@@ -299,7 +327,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
 
         return response.status_code
 
-    # Get the total length of our remote content. Used for verification and progress calculation. 
+    # Get the total length of our remote content. Used for verification and progress calculation.
     remote_length = response.headers.get('content-length')
 
     # Fail out if we can't get the data length.
@@ -312,18 +340,9 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
     # Convert our raw length to an integer value for further processing.
     remote_length = int(remote_length)
 
-    # This value represents how much as a margin percentage of the local file size
-    # can the local file can differ from the remote one before being discarded.
-    confidence_percentage = 0.01
-
     if not force and os.path.isfile(os.path.join(output, name)):
-        local_length = os.path.getsize(os.path.join(output, name))
-
-        # Confidence is negative if we're lacking data greater than our margin.
-        confidence = -(remote_length - (local_length + (remote_length * confidence_percentage)))
-
         # If we have less data than our confidence percentage we re-download our file.
-        if confidence < 0:
+        if calculate_confidence(os.path.getsize(os.path.join(output, name)), remote_length, 0.01) < 0:
             if verbose:
                 print("File already found but the file size does not match up. Re-downloading.")
 
@@ -343,8 +362,6 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
             dl = 0
             cleaned_length = int((remote_length * 100) / pow(1024, 2)) / 100
             block_size = 2048
-
-            time_last = datetime.now()
 
             try:
                 for chunk in response.iter_content(chunk_size=block_size):
@@ -374,22 +391,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
                 # Verify our download size for completion. Since the file sizes will
                 # not entirely match up because of possible ID3 tag differences or
                 # additional headers, pass a margin/percentage confidence check instead.
-                local_length = os.path.getsize(f.name)
-
-                # Confidence is negative if we're lacking data greater than our margin.
-                confidence = -(remote_length - (local_length + (remote_length * confidence_percentage)))
-
-                # Debug lines to help us possibly identify size differential issues.
-                # print(
-                #     "\nRemote size: {} | Local size: {} | Confidence margin percentage: {:.2%} | Confidence: {}".format(
-                #         remote_length,
-                #         local_length,
-                #         confidence_percentage,
-                #         int(-confidence)
-                #     )
-                # )
-
-                if confidence < 0:
+                if calculate_confidence(os.path.getsize(f.name), remote_length, 0.01) < 0:
                     # Print a newline to skip the buffer flush.
                     print("")
 
@@ -405,7 +407,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
                     # Request and download was successful.
                     success = True
 
-            except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
+            except(requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.StreamConsumedError):
                 # Print a newline to skip the buffer flush.
                 print("")
 
@@ -421,7 +423,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
         if verbose:
             # Print a newline to skip the buffer flush.
             print("")
-            
+
         return 1
 
     else:

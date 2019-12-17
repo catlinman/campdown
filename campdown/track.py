@@ -79,7 +79,6 @@ class Track:
         self.sleep = sleep
 
         # Set if the cover should be downloaded as well.
-        # This is disabled for tracks by default.
         self.art_enabled = art_enabled
 
         self.id3_enabled = id3_enabled
@@ -286,7 +285,7 @@ class Track:
         # Download artwork if it is enabled.
         if self.art_enabled:
             status = download_file(self.art_url, self.output,
-                              clean_title + self.art_url[-4:])
+                                   clean_title + self.art_url[-4:])
 
             if status == 1:
                 if self.verbose:

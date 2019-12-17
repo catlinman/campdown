@@ -8,6 +8,7 @@ Usage:
              [--short]
              [--no-art]
              [--no-id3]
+             [--no-missing]
     campdown (-h | --help)
     campdown (-v | --version)
 
@@ -20,8 +21,10 @@ Options:
 
     -q, --quiet                     Should output messages be hidden.
     -s, --short                     Should the output filenames be kept short.
+
     --no-art                        Sets if artwork downloading should be ignored.
     --no-id3                        Sets if ID3 tagging should be ignored.
+    --no-missing                    Sets if album downloads abort on missing tracks.
 
 Description:
     Command line Bandcamp downloader. Takes in Bandcamp page URLs and fetches
@@ -47,7 +50,7 @@ import requests
 
 def cli():
     # Acts as the CLI for the project and main entry point for the command.
-    args = docopt(__doc__, version="campdown 1.46")
+    args = docopt(__doc__, version="campdown 1.47")
 
     try:
         output_dir = args["--output"]
@@ -62,7 +65,8 @@ def cli():
         short=(args["--short"]),
         sleep=(int(args["--sleep"]) if args["--sleep"] else 30),
         art_enabled=(not args["--no-art"]),
-        id3_enabled=(not args["--no-id3"])
+        id3_enabled=(not args["--no-id3"]),
+        abort_missing=(args["--no-missing"])
     )
 
     try:
@@ -93,7 +97,7 @@ class Downloader:
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     """
 
-    def __init__(self, url, out=None, verbose=False, silent=False, short=False, sleep=30, id3_enabled=True, art_enabled=True):
+    def __init__(self, url, out=None, verbose=False, silent=False, short=False, sleep=30, id3_enabled=True, art_enabled=True, abort_missing=False):
         self.url = url
         self.output = out
         self.verbose = verbose
@@ -102,6 +106,7 @@ class Downloader:
         self.sleep = sleep
         self.id3_enabled = id3_enabled
         self.art_enabled = art_enabled
+        self.abort_missing = abort_missing
 
         # Variables used during retrieving of information.
         self.request = None
@@ -190,12 +195,12 @@ class Downloader:
                 short=self.short,
                 sleep=self.sleep,
                 art_enabled=self.art_enabled,
-                id3_enabled=self.id3_enabled
+                id3_enabled=self.id3_enabled,
+                abort_missing=self.abort_missing
             )
 
             if album.prepare():  # Prepare the album with information from the supplied URL.
-                album.fetch()  # Make the album prepare it's tracks.
-                album.download()  # Start the download process.
+                album.download() if album.fetch() else False  # Start the download process if fetches succeeded.
 
             if self.verbose:
                 print("\nFinished album download. Downloader complete.")
@@ -213,11 +218,13 @@ class Downloader:
                 short=self.short,
                 sleep=self.sleep,
                 art_enabled=self.art_enabled,
-                id3_enabled=self.id3_enabled
+                id3_enabled=self.id3_enabled,
+                abort_missing=self.abort_missing
             )
 
             page.prepare()  # Make discography gather all information it requires.
-            page.fetch_download()  # Begin the download process.
+            page.fetch()  # Begin telling prepared items to fetch their own information.
+            page.download()  # Start the download process.
 
             if self.verbose:
                 print("\nFinished discography download. Downloader complete.")

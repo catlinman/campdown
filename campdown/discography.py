@@ -7,6 +7,7 @@ from .album import Album
 
 
 class Discography:
+
     """
     Discography class of Campdown. This class takes in a URL and treats it as a
     Bandcamp discography page. Takes over downloading of files as well as
@@ -27,7 +28,7 @@ class Discography:
         id3_enabled (bool): if True tracks downloaded will receive new ID3 tags.
     """
 
-    def __init__(self, url, output, request=None, verbose=False, silent=False, short=False, sleep=30, art_enabled=True, id3_enabled=True):
+    def __init__(self, url, output, request=None, verbose=False, silent=False, short=False, sleep=30, art_enabled=True, id3_enabled=True, abort_missing=False):
         # Requests and other information can optionally be filled to remove unneccessary
         # operations such as making a request to a URL that has already been fetched
         # by another component.
@@ -66,6 +67,9 @@ class Discography:
         # Set if ID3 tags should be written to files.
         self.id3_enabled = id3_enabled
 
+        # Sets if a missing album track aborts the entire album download.
+        self.abort_missing = abort_missing
+
     def prepare(self):
         """
         Prepares the discography class by gathering information about albums and
@@ -101,6 +105,8 @@ class Discography:
         self.base_url = "{}//{}".format(str(self.url).split("/")[
             0], str(self.url).split("/")[2])
 
+        print(self.base_url)
+
         meta = html.unescape(string_between(self.content, '<meta name="Description" content="', ">")).strip()
         self.artist = meta.split(".\n", 1)[0]
 
@@ -120,80 +126,120 @@ class Discography:
         # Define search markers to find the index of for track URLs.
         track_search_markers = [
             '<a href="/track/',
-            '<a href="{}/track/'.format(self.base_url)
+            '<a href="{}/track/'.format(self.base_url),
+            '<a href="https://\w+.bandcamp.com/track/'
         ]
+
+        # Run a search through our track markers and handle regex options and duplicates.
+        track_filtered_markers = []
+        for marker in track_search_markers:
+            results = re.findall(marker, self.content)
+
+            for result in results:
+                if result not in track_filtered_markers:
+                    track_filtered_markers.append(result)
 
         # Create a list of indices for track links.
         tracks = []
-        for marker in track_search_markers:
+        for marker in track_filtered_markers:
             tracks.extend(find_string_indices(self.content, marker))
 
         # Define search markers to find the index of for album URLs.
         album_search_markers = [
             '<a href="/album/',
-            '<a href="{}/album/'.format(self.base_url)
+            '<a href="{}/album/'.format(self.base_url),
+            '<a href="https://\w+.bandcamp.com/album/'
         ]
+
+        # Run a search through our album markers and handle regex options and duplicates.
+        album_filtered_markers = []
+        for marker in album_search_markers:
+            results = re.findall(marker, self.content)
+
+            for result in results:
+                if result not in album_filtered_markers:
+                    album_filtered_markers.append(result)
 
         # Create a list of indices for album links.
         albums = []
-        for marker in album_search_markers:
+        for marker in album_filtered_markers:
             albums.extend(find_string_indices(self.content, marker))
 
         if self.verbose:
             print('\nListing found discography content')
 
         for i, position in enumerate(albums):
-            album_name = ""
+            album_url = ""
 
-            # Begin iteration over characters until the string closes.
+            # Begin iteration over characters until the string begins.
             while self.content[position] != '"':
-                album_name += self.content[position]
                 position += 1
 
-            if album_name == "":
+            # Begin iteration over characters until the string closes.
+            while self.content[position + 1] != '"' and self.content[position + 1] != '?':
+                album_url += self.content[position + 1]
+                position += 1
+
+            if album_url == "":
                 continue
+
+            if "http://" not in album_url and "https://" not in album_url:
+                album_url = self.base_url + album_url
 
             # Print the prepared track.
             if self.verbose:
-                safe_print(self.base_url + "/album/" + album_name)
+                safe_print(album_url)
 
             # Create a new track instance with the given URL.
             album = Album(
-                self.base_url + "/album/" + album_name,
+                album_url,
                 self.output,
                 verbose=self.verbose,
                 silent=self.silent,
                 short=self.short,
-                sleep=self.sleep
+                sleep=self.sleep,
+                art_enabled=self.art_enabled,
+                id3_enabled=self.id3_enabled,
+                abort_missing=self.abort_missing
             )
 
             self.queue.insert(len(self.queue), album)
 
         for i, position in enumerate(tracks):
-            track_name = ""
+            track_url = ""
 
-            # Begin iteration over characters until the string closes.
+            # Begin iteration over characters until the string begins.
             while self.content[position] != '"':
-                track_name += self.content[position]
                 position += 1
 
-            if track_name != "":
-                # Print the prepared track.
-                if self.verbose:
-                    safe_print(self.base_url + "/track/" + track_name)
+            # Begin iteration over characters until the string closes.
+            while self.content[position + 1] != '"' and self.content[position + 1] != '?':
+                track_url += self.content[position + 1]
+                position += 1
 
-                # Create a new track instance with the given URL.
-                track = Track(
-                    self.base_url + "/track/" + track_name,
-                    self.output,
-                    verbose=self.verbose,
-                    art_enabled=True
-                )
+            if track_url == "":
+                continue
 
-                self.queue.insert(len(self.queue), track)
+            if not "http://" in track_url and not "https://" in track_url:
+                track_url = self.base_url + track_url
+
+            # Print the prepared track.
+            if self.verbose:
+                safe_print(track_url)
+
+            # Create a new track instance with the given URL.
+            track = Track(
+                track_url,
+                self.output,
+                verbose=self.verbose,
+                art_enabled=self.art_enabled,
+                id3_enabled=self.id3_enabled
+            )
+
+            self.queue.insert(len(self.queue), track)
 
         if self.verbose:
-            print('\nBeginning downloads. Albums additionally require fetching tracks.')
+            print("\nBeginning downloads. Albums additionally require fetching tracks.")
 
         return True
 
@@ -207,11 +253,15 @@ class Discography:
 
         for i in range(0, len(self.queue)):
             if type(self.queue[i]) is Track:
-                self.queue[i].prepare()
+                # If we received a metadata return, delete the track data.
+                if not self.queue[i].prepare():
+                    self.queue[i] = None
 
             elif type(self.queue[i]) is Album:
-                self.queue[i].prepare()
-                self.queue[i].fetch()
+                if self.queue[i].prepare():
+                    # If we received a bad fetch, delete the album data.
+                    if not self.queue[i].fetch():
+                        self.queue[i] = None
 
     def download(self):
         """
@@ -232,32 +282,4 @@ class Discography:
                     safe_print(
                         '\nDownloading album "{}"'.format(self.queue[i].title))
 
-                self.queue[i].download()
-
-    def fetch_download(self):
-        """
-        Starts the download process for each of the queue's items. This method
-        is the same as the download and fetch method but chains them together
-        to start download files right away instead of preparing them. Good for
-        pages with a lot of tracks and albums.
-        """
-
-        for i in range(0, len(self.queue)):
-            if type(self.queue[i]) is Track:
-                self.queue[i].prepare()
-
-                if self.verbose:
-                    safe_print(
-                        '\nDownloading track "{}"'.format(self.queue[i].title))
-
-                self.queue[i].download()
-
-            elif type(self.queue[i]) is Album:
-                self.queue[i].prepare()
-
-                if self.verbose:
-                    safe_print(
-                        '\nDownloading album "{}"'.format(self.queue[i].title))
-
-                self.queue[i].fetch()
                 self.queue[i].download()
