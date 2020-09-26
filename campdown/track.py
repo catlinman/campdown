@@ -170,13 +170,14 @@ class Track:
             self.content, '<a class="popupImage" href="', '">')
 
         # Get the Bandcamp track MP3 URL and save it.
-        raw_info = "{" + string_between(
-            self.content, "trackinfo: [{", "}]") + "}"
+        raw_info = "{{{data}}}".format(data=html.unescape(string_between(
+            self.content, "data-tralbum=\"{", "}\"")).replace("'", "\"")
+        )
 
         info = json.loads(raw_info)
 
-        if info["file"]:
-            self.mp3_url = info["file"]["mp3-128"]
+        if "trackinfo" in info:
+            self.mp3_url = info["trackinfo"][0]["file"]["mp3-128"]
 
             try:
                 # Add in http for those times when Bandcamp is rude.
