@@ -174,6 +174,9 @@ class Track:
             self.content, "data-tralbum=\"{", "}\"")).replace("'", "\"")
         )
 
+        # Escape additional " for all values. Check issue #6 and corresponding commit
+        raw_info = re.sub(r'((?<![\\,:{])"(?![:,}]))', r'\\"', raw_info)
+        
         info = json.loads(raw_info)
 
         if "trackinfo" in info:
