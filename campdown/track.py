@@ -179,7 +179,7 @@ class Track:
         
         info = json.loads(raw_info)
 
-        if "trackinfo" in info:
+        if "trackinfo" in info and info["trackinfo"][0]["file"]:
             self.mp3_url = info["trackinfo"][0]["file"]["mp3-128"]
 
             try:
