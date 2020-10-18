@@ -387,6 +387,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
 
                         # Flush the output buffer so we can overwrite the same line.
                         sys.stdout.flush()
+                f.flush()
 
                 # Verify our download size for completion. Since the file sizes will
                 # not entirely match up because of possible ID3 tag differences or
