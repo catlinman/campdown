@@ -251,9 +251,9 @@ def calculate_confidence(inspected, expected, percentage):
 
     # Debug lines to help us possibly identify size differential issues.
     # print(
-    #     "\nExpected size: {} | Inspected size: {} | Confidence margin percentage: {:.2%} | Confidence: {}".format(
+    #     "\nInspected size: {} | Expected size: {} | Confidence margin percentage: {:.2%} | Confidence: {}".format(
+    #         inspected
     #         expected,
-    #         inspected,
     #         percentage,
     #         int(-(expected - (inspected + (expected * percentage))))
     #     )
