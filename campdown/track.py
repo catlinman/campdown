@@ -171,7 +171,7 @@ class Track:
 
         # Get the Bandcamp track MP3 URL and save it.
         raw_info = "{{{data}}}".format(data=html.unescape(string_between(
-            self.content, "data-tralbum=\"{", "}\"")).replace("'", "\"")
+            self.content, "data-tralbum=\"{", "}\""))
         )
 
         # Escape additional " for all values. Check issue #6 and corresponding commit
@@ -179,10 +179,10 @@ class Track:
         
         info = json.loads(raw_info)
 
-        if "trackinfo" in info and info["trackinfo"][0]["file"]:
-            self.mp3_url = info["trackinfo"][0]["file"]["mp3-128"]
-
+        if "trackinfo" in info:
             try:
+                self.mp3_url = info["trackinfo"][0]["file"]["mp3-128"]
+
                 # Add in http for those times when Bandcamp is rude.
                 if self.mp3_url[:2] == "//":
                     self.mp3_url = "http:" + self.mp3_url
