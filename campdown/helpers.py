@@ -27,7 +27,7 @@ def safe_get(url):
     headers = requests.utils.default_headers()
 
     headers.update = {
-        "User-Agent": "campdown/1.48 (+https://github.com/catlinman/campdown)",
+        "User-Agent": "campdown/1.49 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
@@ -297,7 +297,7 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
     headers = requests.utils.default_headers()
 
     headers.update = {
-        "User-Agent": "campdown/1.48 (+https://github.com/catlinman/campdown)",
+        "User-Agent": "campdown/1.49 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
