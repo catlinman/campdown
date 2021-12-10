@@ -1,12 +1,16 @@
 
 import html
 import json
+import logging
 
 from .helpers import *
 
 import requests
 from mutagen.id3 import ID3NoHeaderError
 from mutagen.id3 import ID3, TIT2, TALB, TPE1, TPE2, COMM, TDRC, TRCK
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 class Track:
@@ -171,18 +175,23 @@ class Track:
 
         # Get the Bandcamp track MP3 URL and save it.
         raw_info = "{{{data}}}".format(data=html.unescape(string_between(
-            self.content, "data-tralbum=\"{", "}\""))
+            self.content, "data-tralbum=\"{", "}\"")).replace("'", "\"")
         )
 
         # Escape additional " for all values. Check issue #6 and corresponding commit
         raw_info = re.sub(r'((?<![\\,:{])"(?![:,}]))', r'\\"', raw_info)
         
-        info = json.loads(raw_info)
+        try:
+            info = json.loads(raw_info)
+        except json.decoder.JSONDecodeError as e:
+            logger.exception("Could not parse Json for %s" % raw_info)
+            info = []
 
-        if "trackinfo" in info:
+
+        if "trackinfo" in info and info["trackinfo"][0]["file"]:
+            self.mp3_url = info["trackinfo"][0]["file"]["mp3-128"]
+
             try:
-                self.mp3_url = info["trackinfo"][0]["file"]["mp3-128"]
-
                 # Add in http for those times when Bandcamp is rude.
                 if self.mp3_url[:2] == "//":
                     self.mp3_url = "http:" + self.mp3_url
