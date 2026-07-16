@@ -26,12 +26,12 @@ def strike(string):
 def safe_get(url):
     headers = requests.utils.default_headers()
 
-    headers.update = {
+    headers.update({
         "User-Agent": "campdown/1.49 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
-    }
+    })
 
     # Make a request to the track URL.
     r = requests.get(url, headers=headers)
@@ -202,7 +202,7 @@ def page_type(content):
         "none" if the supplied page is not a Bandcamp page.
     """
     if "bandcamp.com" in content:
-        if "Digital Album" and "track_list" in content:
+        if "Digital Album" in content and "track_list" in content:
             return "album"
 
         elif 'id="discography"' not in content:
@@ -296,12 +296,12 @@ def download_file(url, output, name, force=False, verbose=False, silent=False, s
 
     headers = requests.utils.default_headers()
 
-    headers.update = {
+    headers.update({
         "User-Agent": "campdown/1.49 (+https://github.com/catlinman/campdown)",
         "Accept-Encoding": ", ".join(("gzip", "deflate")),
         "Accept": "*/*",
         "Connection": "keep-alive",
-    }
+    })
 
     # Initilize our response variable.
     response = None
